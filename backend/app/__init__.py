@@ -24,7 +24,7 @@ def create_app() -> Flask:
 
     # ── CORS ──────────────────────────────────────────────
     # Only allow requests from our frontend origins
-    CORS(app, origins=config.ALLOWED_ORIGINS, supports_credentials=True)
+    CORS(app, origins="*", supports_credentials=False)
 
     # ── Rate Limiting ──────────────────────────────────────
     limiter = Limiter(

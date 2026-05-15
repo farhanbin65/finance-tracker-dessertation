@@ -29,7 +29,7 @@ class Config:
     BCRYPT_ROUNDS: int = 12  # High cost factor for fintech-grade password hashing
     ALLOWED_ORIGINS: list = os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:5173,http://localhost:3000"
+        "http://localhost:5173,http://localhost:3000,https://didactic-space-yodel-4j77pv6qvqq6hq5pw-5173.app.github.dev"
     ).split(",")
 
     # ── Rate Limiting ──────────────────────────────────────

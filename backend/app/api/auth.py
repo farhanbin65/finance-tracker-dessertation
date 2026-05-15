@@ -65,7 +65,79 @@ def login():
     except Exception as e:
         return jsonify({"error": "Login failed. Please try again."}), 500
 
+@auth_bp.route("/auth0-login", methods=["POST"])
+def auth0_login():
+    """
+    POST /api/auth/auth0-login
+    Called after Auth0 social login.
+    Receives Auth0 user info, creates/finds user in our DB,
+    returns our own JWT tokens.
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        email = body.get("email", "").lower()
+        full_name = body.get("full_name", "")
+        auth0_id = body.get("auth0_id", "")
 
+        if not email:
+            return jsonify({"error": "Email is required"}), 400
+
+        from app.db.mongo import get_db
+        from app.core.security import create_access_token, create_refresh_token
+        from datetime import datetime, timezone
+        from app.services.auth_service import _write_audit_log
+
+        db = get_db()
+
+        # Find existing user or create new one
+        user = db.users.find_one({"email": email})
+
+        if not user:
+            # First time Auth0 login — create account automatically
+            user_doc = {
+                "full_name": full_name,
+                "email": email,
+                "password_hash": "",        # No password for social users
+                "auth0_id": auth0_id,
+                "auth_provider": "auth0",
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "is_active": True,
+                "mfa_enabled": False,
+                "last_login": datetime.now(timezone.utc),
+                "currency": "GBP",
+            }
+            result = db.users.insert_one(user_doc)
+            user_id = str(result.inserted_id)
+            _write_audit_log(user_id, "AUTH0_REGISTER", {"email": email})
+        else:
+            user_id = str(user["_id"])
+            # Update last login
+            db.users.update_one(
+                {"_id": user["_id"]},
+                {"$set": {
+                    "last_login": datetime.now(timezone.utc),
+                    "auth0_id": auth0_id,
+                }}
+            )
+            _write_audit_log(user_id, "AUTH0_LOGIN", {"email": email})
+
+        return jsonify({
+            "access_token": create_access_token(user_id, email),
+            "refresh_token": create_refresh_token(user_id),
+            "user": {
+                "id": user_id,
+                "full_name": full_name,
+                "email": email,
+                "currency": "GBP",
+            }
+        }), 200
+
+    except Exception as e:
+            import traceback
+            traceback.print_exc()
+            logger.error("Auth0 login failed", extra={"error": str(e)})
+            return jsonify({"error": f"Auth0 login failed: {str(e)}"}), 500
 @auth_bp.route("/me", methods=["GET"])
 @require_auth
 def me():
