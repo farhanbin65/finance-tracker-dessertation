@@ -1,0 +1,54 @@
+# ===== Secrets =====
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ===== Node / Frontend =====
+node_modules/
+dist/
+build/
+.vite/
+*.log
+npm-debug.log*
+
+# ===== Python / Backend =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ===== ML artifacts =====
+backend/app/ml/*.pkl
+backend/app/ml/*.joblib
+backend/data/*.csv
+!backend/data/.gitkeep
+
+# ===== IDE =====
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Docker =====
+docker-volume-data/
+
+# ===== Logs =====
+logs/
+*.log

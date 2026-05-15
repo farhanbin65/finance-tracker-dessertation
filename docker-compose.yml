@@ -1,0 +1,86 @@
+# FinSight — Privacy-First Personal Finance Assistant
+# Local development stack: MongoDB + Flask backend + Vite frontend
+#
+# Why Docker Compose:
+#  - Reproducible dev environment across machines (AT3 'executable state' rule)
+#  - One command (`docker compose up`) brings up the entire system
+#  - Healthchecks ensure backend waits for Mongo before starting
+#
+# Usage:
+#   docker compose up --build       # first run / after dependency changes
+#   docker compose up               # subsequent runs
+#   docker compose down             # stop and remove containers
+#   docker compose down -v          # also remove DB volume (full reset)
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: finsight-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme_local_only}
+      MONGO_INITDB_DATABASE: finsight
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finsight-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: finsight-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-changeme_local_only}@mongo:27017/finsight?authSource=admin
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_replace_in_production}
+      - JWT_ACCESS_TOKEN_EXPIRES_MINUTES=15
+      - JWT_REFRESH_TOKEN_EXPIRES_DAYS=7
+      - BCRYPT_ROUNDS=12
+      - CORS_ORIGINS=http://localhost:5174
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3.2:3b
+    volumes:
+      - ./backend:/app
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - finsight-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: finsight-frontend
+    restart: unless-stopped
+    ports:
+      - "5174:5174"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - finsight-net
+
+volumes:
+  mongo-data:
+    driver: local
+
+networks:
+  finsight-net:
+    driver: bridge
