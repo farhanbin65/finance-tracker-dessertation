@@ -37,8 +37,10 @@ def create_app() -> Flask:
     # ── Register Blueprints (Routes) ───────────────────────
     from app.api.auth import auth_bp
     from app.api.transactions import transactions_bp
+    from app.api.budgets import budgets_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(transactions_bp)
+    app.register_blueprint(budgets_bp)
 
     # ── Health Check Endpoint ──────────────────────────────
     @app.route("/health", methods=["GET"])
