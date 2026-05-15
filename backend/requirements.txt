@@ -1,0 +1,33 @@
+# Web Framework
+flask==3.0.3
+flask-cors==4.0.1
+
+# MongoDB
+pymongo==4.7.2
+dnspython==2.6.1
+
+# Auth & Security
+bcrypt==4.1.3
+PyJWT==2.8.0
+python-dotenv==1.0.1
+
+# Validation
+pydantic==2.7.1
+email-validator==2.1.1
+
+# Rate Limiting
+flask-limiter==3.7.0
+
+# Logging
+python-json-logger==2.0.7
+
+# ML (for later sprints)
+scikit-learn==1.5.0
+numpy==1.26.4
+pandas==2.2.2
+shap==0.45.1
+
+# Testing
+pytest==8.2.0
+pytest-flask==1.3.0
+httpx==0.27.0
