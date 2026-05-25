@@ -1,35 +1,26 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import LoginPage from './features/auth/LoginPage'
-import RegisterPage from './features/auth/RegisterPage'
-import CallbackPage from './features/auth/CallbackPage'
+import { useAuth0 } from '@auth0/auth0-react'
+import { Navigate } from 'react-router-dom'
 
-// Temporary dashboard placeholder
-function Dashboard() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center"
-         style={{ backgroundColor: '#15121b', color: '#e8dfee' }}>
-      <div className="text-center space-y-4">
-        <h1 className="text-3xl font-bold" style={{ color: '#7c3aed' }}>
-          🎉 Welcome, {user.full_name}!
-        </h1>
-        <p style={{ color: '#94A3B8' }}>Auth0 + JWT hybrid login working perfectly!</p>
-        <p style={{ color: '#10B981' }}>✅ Dashboard coming next...</p>
-      </div>
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth0()
+
+  // Show nothing while Auth0 checks session
+  if (isLoading) return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100dvh', background: 'var(--bg-primary)'
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        border: '3px solid var(--accent)',
+        borderTopColor: 'transparent',
+        animation: 'spin 0.8s linear infinite'
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
-}
 
-function App() {
-  return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/callback" element={<CallbackPage />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
-  )
-}
+  if (!isAuthenticated) return <Navigate to="/login" replace />
 
-export default App
+  return <>{children}</>
+}
