@@ -3,10 +3,13 @@ import { useAuth0 } from '@auth0/auth0-react'
 
 // ── Types ──────────────────────────────────────────────
 interface BudgetCategory {
-  _id: string
+  id: string
   category: string
-  allocated: number
+  limit: number
   spent: number
+  month: number
+  year: number
+  alert_threshold: number
 }
 
 interface BudgetSummary {
@@ -39,11 +42,11 @@ function getStatus(spent: number, allocated: number) {
 
 // ── Demo data ──────────────────────────────────────────
 const DEMO_CATEGORIES: BudgetCategory[] = [
-  { _id:'1', category:'Food',          allocated:450,  spent:320  },
-  { _id:'2', category:'Transport',     allocated:200,  spent:180  },
-  { _id:'3', category:'Entertainment', allocated:200,  spent:215  },
-  { _id:'4', category:'Shopping',      allocated:500,  spent:420  },
-  { _id:'5', category:'Subscriptions', allocated:150,  spent:150  },
+  { id:'1', category:'Food',          limit:450,  spent:320, month: 5, year: 2026, alert_threshold: 80 },
+  { id:'2', category:'Transport',     limit:200,  spent:180, month: 5, year: 2026, alert_threshold: 80 },
+  { id:'3', category:'Entertainment', limit:200,  spent:215, month: 5, year: 2026, alert_threshold: 80 },
+  { id:'4', category:'Shopping',      limit:500,  spent:420, month: 5, year: 2026, alert_threshold: 80 },
+  { id:'5', category:'Subscriptions', limit:150,  spent:150, month: 5, year: 2026, alert_threshold: 80 },
 ]
 
 const CATEGORIES = ['Food','Transport','Shopping','Entertainment','Subscriptions','Health','Education','Other']
@@ -69,7 +72,7 @@ export default function BudgetPage() {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/budgetsss`,
+        `${import.meta.env.VITE_API_URL}/api/budgets`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -79,7 +82,7 @@ export default function BudgetPage() {
       if (data.budgets?.length) {
         setCategories(data.budgets)
         // Build summary from response or calculate locally
-        const totalAllocated = data.budgets.reduce((s: number, b: BudgetCategory) => s + b.allocated, 0)
+        const totalAllocated = data.budgets.reduce((s: number, b: BudgetCategory) => s + b.limit, 0)
         const totalSpent     = data.budgets.reduce((s: number, b: BudgetCategory) => s + b.spent, 0)
         setSummary({
           total_allocated: totalAllocated,
@@ -104,11 +107,11 @@ export default function BudgetPage() {
     if (!confirm('Remove this budget category?')) return
     try {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
-      await fetch(`${import.meta.env.VITE_API_URL}/api/budgetss/${id}`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/budgets/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
-      setCategories(prev => prev.filter(c => c._id !== id))
+      setCategories(prev => prev.filter(c => c.id !== id))
     } catch {
       alert('Failed to delete.')
     }
@@ -221,7 +224,7 @@ export default function BudgetPage() {
                 />
                 <MiniStat
                   label="Over limit"
-                  value={`${categories.filter(c => c.spent > c.allocated).length}`}
+                  value={`${categories.filter(c => c.spent > c.limit).length}`}
                   color="var(--red)"
                 />
               </div>
@@ -244,10 +247,10 @@ export default function BudgetPage() {
           {/* ── Category list ── */}
           {categories.map(cat => (
             <CategoryCard
-              key={cat._id}
+                key={cat.id}
               cat={cat}
               onEdit={() => setEditTarget(cat)}
-              onDelete={() => deleteCategory(cat._id)}
+                onDelete={() => deleteCategory(cat.id)}
             />
           ))}
 
@@ -324,9 +327,9 @@ function CategoryCard({ cat, onEdit, onDelete }: {
   onDelete: () => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const status = getStatus(cat.spent, cat.allocated)
-  const pct    = cat.allocated > 0
-    ? Math.min(Math.round((cat.spent / cat.allocated) * 100), 100)
+  const status = getStatus(cat.spent, cat.limit)
+  const pct    = cat.limit > 0
+    ? Math.min(Math.round((cat.spent / cat.limit) * 100), 100)
     : 0
 
   return (
@@ -357,7 +360,7 @@ function CategoryCard({ cat, onEdit, onDelete }: {
               {cat.category}
             </p>
             <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
-              £{cat.spent.toLocaleString()} of £{cat.allocated.toLocaleString()}
+              £{cat.spent.toLocaleString()} of £{cat.limit.toLocaleString()}
             </p>
           </div>
         </div>
@@ -399,9 +402,9 @@ function CategoryCard({ cat, onEdit, onDelete }: {
         fontSize:11, color:'var(--text-muted)',
         marginTop:6, textAlign:'right',
       }}>
-        {cat.spent > cat.allocated
-          ? `£${(cat.spent - cat.allocated).toFixed(0)} over`
-          : `£${(cat.allocated - cat.spent).toFixed(0)} remaining`
+        {cat.spent > cat.limit
+          ? `£${(cat.spent - cat.limit).toFixed(0)} over`
+          : `£${(cat.limit - cat.spent).toFixed(0)} remaining`
         }
       </p>
     </div>
@@ -433,7 +436,7 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
 
   const [form, setForm] = useState({
     category:  existing?.category  ?? 'Food',
-    allocated: existing?.allocated?.toString() ?? '',
+    limit: existing?.limit?.toString() ?? '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr]               = useState('')
@@ -442,15 +445,15 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
     setForm(prev => ({ ...prev, [k]: v }))
 
   async function handleSubmit() {
-    if (!form.allocated || isNaN(Number(form.allocated))) return setErr('Enter a valid amount')
+    if (!form.limit || isNaN(Number(form.limit))) return setErr('Enter a valid amount')
     setErr('')
     setSubmitting(true)
 
     try {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
       const url    = mode === 'edit' && existing
-        ? `${import.meta.env.VITE_API_URL}/api/budgetss/${existing._id}`
-        : `${import.meta.env.VITE_API_URL}/api/budgetss`
+        ? `${import.meta.env.VITE_API_URL}/api/budgets/${existing.id}`
+        : `${import.meta.env.VITE_API_URL}/api/budgets`
       const method = mode === 'edit' ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
@@ -461,7 +464,7 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
         },
         body: JSON.stringify({
           category:  form.category,
-          allocated: parseFloat(form.allocated),
+          limit: parseFloat(form.limit),
         }),
       })
       if (!res.ok) throw new Error('Failed to save')
@@ -542,8 +545,8 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
           </label>
           <input
             type="number"
-            value={form.allocated}
-            onChange={e => update('allocated', e.target.value)}
+            value={form.limit}
+            onChange={e => update('limit', e.target.value)}
             placeholder="e.g. 300"
             style={{
               width:'100%', background:'var(--bg-card)',

@@ -3,12 +3,14 @@ import { useAuth0 } from '@auth0/auth0-react'
 
 // ── Types ──────────────────────────────────────────────
 interface Transaction {
-  _id: string
-  description: string
+  id: string
+  title: string
   amount: number
   type: 'income' | 'expense'
   category: string
   date: string
+  created_at: string
+  notes: string
 }
 
 interface GroupedTransactions {
@@ -72,12 +74,12 @@ function applyFilter(txs: Transaction[], filter: Filter): Transaction[] {
 
 // ── Seed / demo data (used when API is empty) ──────────
 const DEMO_TRANSACTIONS: Transaction[] = [
-  { _id:'1', description:'Salary',       amount:2800, type:'income',  category:'Income',        date: new Date().toISOString() },
-  { _id:'2', description:'Tesco',        amount:45.2, type:'expense', category:'Food',           date: new Date().toISOString() },
-  { _id:'3', description:'Uber',         amount:12.5, type:'expense', category:'Transport',      date: new Date(Date.now()-86400000).toISOString() },
-  { _id:'4', description:'Netflix',      amount:15.99,type:'expense', category:'Subscriptions',  date: new Date(Date.now()-86400000).toISOString() },
-  { _id:'5', description:'Amazon',       amount:89,   type:'expense', category:'Shopping',       date: new Date(Date.now()-864000000).toISOString() },
-  { _id:'6', description:'Costa Coffee', amount:6.4,  type:'expense', category:'Food',           date: new Date(Date.now()-864000000).toISOString() },
+  { id:'1', title:'Salary',       amount:2800, type:'income',  category:'Income',        date: new Date().toISOString(), created_at: new Date().toISOString(), notes: '' },
+  { id:'2', title:'Tesco',        amount:45.2, type:'expense', category:'Food',           date: new Date().toISOString(), created_at: new Date().toISOString(), notes: '' },
+  { id:'3', title:'Uber',         amount:12.5, type:'expense', category:'Transport',      date: new Date(Date.now()-86400000).toISOString(), created_at: new Date(Date.now()-86400000).toISOString(), notes: '' },
+  { id:'4', title:'Netflix',      amount:15.99,type:'expense', category:'Subscriptions',  date: new Date(Date.now()-86400000).toISOString(), created_at: new Date(Date.now()-86400000).toISOString(), notes: '' },
+  { id:'5', title:'Amazon',       amount:89,   type:'expense', category:'Shopping',       date: new Date(Date.now()-864000000).toISOString(), created_at: new Date(Date.now()-864000000).toISOString(), notes: '' },
+  { id:'6', title:'Costa Coffee', amount:6.4,  type:'expense', category:'Food',           date: new Date(Date.now()-864000000).toISOString(), created_at: new Date(Date.now()-864000000).toISOString(), notes: '' },
 ]
 
 // ══════════════════════════════════════════════════════
@@ -139,7 +141,7 @@ export default function TransactionsPage() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
-      setTransactions(prev => prev.filter(t => t._id !== id))
+      setTransactions(prev => prev.filter(t => t.id !== id))
     } catch {
       alert('Failed to delete. Please try again.')
     }
@@ -148,7 +150,7 @@ export default function TransactionsPage() {
   // ── Derived data ─────────────────────────────────────
   const searched = search.trim()
     ? transactions.filter(t =>
-        t.description.toLowerCase().includes(search.toLowerCase()) ||
+        t.title.toLowerCase().includes(search.toLowerCase()) ||
         t.category.toLowerCase().includes(search.toLowerCase())
       )
     : transactions
@@ -266,7 +268,7 @@ export default function TransactionsPage() {
             </p>
             {txs.map(tx => (
               <TransactionItem
-                key={tx._id}
+                key={tx.id}
                 tx={tx}
                 onDelete={deleteTransaction}
               />
@@ -363,7 +365,7 @@ function TransactionItem({ tx, onDelete }: {
       <div style={{ flex:1, minWidth:0 }}>
         <p style={{ fontSize:15, fontWeight:600, fontFamily:'var(--font-main)',
           whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-          {tx.description}
+          {tx.title}
         </p>
         <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
           {tx.category}
@@ -388,7 +390,7 @@ function TransactionItem({ tx, onDelete }: {
       {/* Delete on hover */}
       {pressed && (
         <button
-          onClick={e => { e.stopPropagation(); onDelete(tx._id) }}
+          onClick={e => { e.stopPropagation(); onDelete(tx.id) }}
           style={{
             background:'rgba(255,79,100,0.1)', border:'none',
             borderRadius:10, padding:'6px 8px', cursor:'pointer',
@@ -412,11 +414,12 @@ function AddTransactionModal({ onClose, onAdded }: {
   const { getAccessTokenSilently } = useAuth0()
 
   const [form, setForm] = useState({
-    description: '',
+    title: '',
     amount: '',
     type: 'expense' as 'income' | 'expense',
     category: 'Food',
     date: new Date().toISOString().split('T')[0],
+    notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState('')
@@ -425,7 +428,7 @@ function AddTransactionModal({ onClose, onAdded }: {
     setForm(prev => ({ ...prev, [k]: v }))
 
   async function handleSubmit() {
-    if (!form.description.trim()) return setErr('Description is required')
+    if (!form.title.trim()) return setErr('Description is required')
     if (!form.amount || isNaN(Number(form.amount))) return setErr('Enter a valid amount')
     setErr('')
     setSubmitting(true)
@@ -441,6 +444,7 @@ function AddTransactionModal({ onClose, onAdded }: {
         body: JSON.stringify({
           ...form,
           amount: parseFloat(form.amount),
+          title: form.title,
         }),
       })
       if (!res.ok) throw new Error('Failed to save')
@@ -508,8 +512,8 @@ function AddTransactionModal({ onClose, onAdded }: {
         <ModalInput
           label="Description"
           placeholder="e.g. Tesco, Salary..."
-          value={form.description}
-          onChange={v => update('description', v)}
+          value={form.title}
+          onChange={v => update('title', v)}
         />
 
         {/* Amount */}

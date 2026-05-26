@@ -3,20 +3,23 @@ import { useAuth0 } from '@auth0/auth0-react'
 
 // ── Types ──────────────────────────────────────────────
 interface SavingsGoal {
-  _id: string
+  id: string
   name: string
   target_amount: number
-  current_amount: number
+  saved_amount: number
+  remaining: number
   target_date: string
   emoji: string
-  color?: string
+  percentage: number
+  is_completed: boolean
+  days_remaining: number
 }
 
 // ── Demo data ──────────────────────────────────────────
 const DEMO_GOALS: SavingsGoal[] = [
-  { _id:'1', name:'House Deposit', target_amount:20000, current_amount:15000, target_date:'2026-12-01', emoji:'🏠' },
-  { _id:'2', name:'Holiday Fund',  target_amount:2000,  current_amount:800,   target_date:'2025-07-01', emoji:'✈️' },
-  { _id:'3', name:'New Car',       target_amount:15000, current_amount:1500,  target_date:'2027-03-01', emoji:'🚗' },
+  { id:'1', name:'House Deposit', target_amount:20000, saved_amount:15000, remaining:5000, target_date:'2026-12-01', emoji:'🏠', percentage:75, is_completed:false, days_remaining:189 },
+  { id:'2', name:'Holiday Fund',  target_amount:2000,  saved_amount:800,   remaining:1200, target_date:'2025-07-01', emoji:'✈️', percentage:40, is_completed:false, days_remaining:36 },
+  { id:'3', name:'New Car',       target_amount:15000, saved_amount:1500,  remaining:13500, target_date:'2027-03-01', emoji:'🚗', percentage:10, is_completed:false, days_remaining:279 },
 ]
 
 const GOAL_EMOJIS = ['🏠','✈️','🚗','💻','📱','🎓','💍','🏋️','🎸','🐕','⛵','🌍']
@@ -109,16 +112,16 @@ export default function GoalsPage() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
-      setGoals(prev => prev.filter(g => g._id !== id))
+      setGoals(prev => prev.filter(g => g.id !== id))
     } catch {
       alert('Failed to delete goal.')
     }
   }
 
   // ── Derived summary ──────────────────────────────────
-  const totalStashed   = goals.reduce((s, g) => s + g.current_amount, 0)
+  const totalStashed   = goals.reduce((s, g) => s + g.saved_amount, 0)
   const totalTarget    = goals.reduce((s, g) => s + g.target_amount, 0)
-  const completedCount = goals.filter(g => g.current_amount >= g.target_amount).length
+  const completedCount = goals.filter(g => g.is_completed || g.saved_amount >= g.target_amount).length
 
   if (loading) return <LoadingSkeleton />
 
@@ -185,11 +188,11 @@ export default function GoalsPage() {
       ) : (
         goals.map(goal => (
           <GoalCard
-            key={goal._id}
+            key={goal.id}
             goal={goal}
             onAddMoney={() => setDepositTarget(goal)}
             onEdit={() => setEditTarget(goal)}
-            onDelete={() => deleteGoal(goal._id)}
+            onDelete={() => deleteGoal(goal.id)}
           />
         ))
       )}
@@ -267,10 +270,10 @@ function GoalCard({ goal, onAddMoney, onEdit, onDelete }: {
 }) {
   const [hovered, setHovered] = useState(false)
   const pct       = goal.target_amount > 0
-    ? (goal.current_amount / goal.target_amount) * 100
+    ? (goal.saved_amount / goal.target_amount) * 100
     : 0
-  const remaining = Math.max(goal.target_amount - goal.current_amount, 0)
-  const completed = goal.current_amount >= goal.target_amount
+  const remaining = Math.max(goal.target_amount - goal.saved_amount, 0)
+  const completed = goal.saved_amount >= goal.target_amount
 
   // Days remaining
   const daysLeft  = Math.ceil(
@@ -352,7 +355,7 @@ function GoalCard({ goal, onAddMoney, onEdit, onDelete }: {
           Current Savings
         </p>
         <p style={{ fontFamily:'var(--font-main)', fontSize:22, fontWeight:700 }}>
-          £{goal.current_amount.toLocaleString('en-GB')}
+          £{goal.saved_amount.toLocaleString('en-GB')}
           <span style={{ fontSize:14, color:'var(--text-muted)', fontWeight:400, marginLeft:4 }}>
             / £{goal.target_amount.toLocaleString('en-GB')}
           </span>
@@ -438,7 +441,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
   const [form, setForm] = useState({
     name:          existing?.name ?? '',
     target_amount: existing?.target_amount?.toString() ?? '',
-    current_amount:existing?.current_amount?.toString() ?? '0',
+    saved_amount:  existing?.saved_amount?.toString() ?? '0',
     target_date:   existing?.target_date?.split('T')[0] ?? '',
     emoji:         existing?.emoji ?? '🎯',
   })
@@ -459,7 +462,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
     try {
       let token  = localStorage.getItem('fs_token') || await getAccessTokenSilently()
       const url  = mode === 'edit' && existing
-        ? `${import.meta.env.VITE_API_URL}/api/goals/${existing._id}`
+        ? `${import.meta.env.VITE_API_URL}/api/goals/${existing.id}`
         : `${import.meta.env.VITE_API_URL}/api/goals`
       const method = mode === 'edit' ? 'PUT' : 'POST'
 
@@ -472,7 +475,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
         body: JSON.stringify({
           name:           form.name,
           target_amount:  parseFloat(form.target_amount),
-          current_amount: parseFloat(form.current_amount || '0'),
+          saved_amount:   parseFloat(form.saved_amount || '0'),
           target_date:    form.target_date,
           emoji:          form.emoji,
         }),
@@ -542,7 +545,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
         <ModalInput label="Target Amount (£)" placeholder="e.g. 20000" type="number"
           value={form.target_amount} onChange={v => update('target_amount', v)} />
         <ModalInput label="Current Savings (£)" placeholder="e.g. 5000" type="number"
-          value={form.current_amount} onChange={v => update('current_amount', v)} />
+          value={form.saved_amount} onChange={v => update('saved_amount', v)} />
         <ModalInput label="Target Date" placeholder="" type="date"
           value={form.target_date} onChange={v => update('target_date', v)} />
 
@@ -570,7 +573,7 @@ function DepositModal({ goal, onClose, onDeposited }: {
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr]               = useState('')
 
-  const remaining = Math.max(goal.target_amount - goal.current_amount, 0)
+  const remaining = Math.max(goal.target_amount - goal.saved_amount, 0)
 
   // Quick amounts
   const QUICK = [10, 25, 50, 100, 250].filter(n => n <= remaining + 1)
@@ -584,7 +587,7 @@ function DepositModal({ goal, onClose, onDeposited }: {
     try {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/goals/${goal._id}/deposit`,
+        `${import.meta.env.VITE_API_URL}/api/goals/${goal.id}/deposit`,
         {
           method: 'POST',
           headers: {
@@ -604,9 +607,9 @@ function DepositModal({ goal, onClose, onDeposited }: {
   }
 
   const pct = goal.target_amount > 0
-    ? (goal.current_amount / goal.target_amount) * 100 : 0
+    ? (goal.saved_amount / goal.target_amount) * 100 : 0
   const newPct = amount && !isNaN(Number(amount))
-    ? Math.min(((goal.current_amount + Number(amount)) / goal.target_amount) * 100, 100)
+    ? Math.min(((goal.saved_amount + Number(amount)) / goal.target_amount) * 100, 100)
     : pct
 
   return (
