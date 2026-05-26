@@ -1,5 +1,12 @@
 import { useAuth0 } from '@auth0/auth0-react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
+import AppLayout from './components/layout/AppLayout'
+import TransactionsPage from './pages/TransactionsPage'
+import BudgetPage from './pages/BudgetPage'
+import GoalsPage from './pages/GoalsPage'
+import ChatPage from './pages/ChatPage'
+import ProfilePage from './pages/ProfilePage'
+import LoginPage from './features/auth/LoginPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth0()
@@ -23,4 +30,22 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
   return <>{children}</>
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
+        <Route index element={<Navigate to="/transactions" replace />} />
+        <Route path="transactions" element={<TransactionsPage />} />
+        <Route path="budget" element={<BudgetPage />} />
+        <Route path="goals" element={<GoalsPage />} />
+        <Route path="chat" element={<ChatPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+      </Route>
+
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="*" element={<Navigate to="/transactions" replace />} />
+    </Routes>
+  )
 }
