@@ -39,7 +39,7 @@ def create_app() -> Flask:
     from app.api.transactions import transactions_bp
     from app.api.budgets import budgets_bp
     from app.api.goals import goals_bp
-    from routes.chat import chat_bp
+    from app.api.chat import chat_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(transactions_bp)
     app.register_blueprint(budgets_bp)
