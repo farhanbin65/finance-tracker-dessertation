@@ -69,7 +69,7 @@ export default function BudgetPage() {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/budget`,
+        `${import.meta.env.VITE_API_URL}/api/budgetsss`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -104,7 +104,7 @@ export default function BudgetPage() {
     if (!confirm('Remove this budget category?')) return
     try {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
-      await fetch(`${import.meta.env.VITE_API_URL}/api/budget/${id}`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/budgetss/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -449,8 +449,8 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
     try {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
       const url    = mode === 'edit' && existing
-        ? `${import.meta.env.VITE_API_URL}/api/budget/${existing._id}`
-        : `${import.meta.env.VITE_API_URL}/api/budget`
+        ? `${import.meta.env.VITE_API_URL}/api/budgetss/${existing._id}`
+        : `${import.meta.env.VITE_API_URL}/api/budgetss`
       const method = mode === 'edit' ? 'PUT' : 'POST'
 
       const res = await fetch(url, {

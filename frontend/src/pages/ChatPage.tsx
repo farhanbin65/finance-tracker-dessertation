@@ -109,7 +109,7 @@ export default function ChatPage() {
     try {
       let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/budget`,
+        `${import.meta.env.VITE_API_URL}/api/budgetsss`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (!res.ok) return
