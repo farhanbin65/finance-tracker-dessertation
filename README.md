@@ -405,4 +405,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ---
 
-Built by Farhan Ahmed as part of a BSc Computing Systems dissertation.
+Built by Farhan Bin Hossain as part of a BSc Computing Systems dissertation.
