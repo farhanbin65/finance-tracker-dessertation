@@ -1,9 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { path: '/transactions', icon: 'ti-wallet',       label: 'Wealth'   },
-  { path: '/budget',       icon: 'ti-chart-pie',    label: 'Trade'    },
-  { path: '/insights',     icon: 'ti-chart-line',   label: 'Insights' },
+  { path: '/dashboard',    icon: 'ti-home',        label: 'Home'     },
+  { path: '/transactions', icon: 'ti-wallet',      label: 'Wealth'   },
+  { path: '/budget',       icon: 'ti-chart-pie',   label: 'Trade'    },
+  { path: '/insights',     icon: 'ti-chart-line',  label: 'Insights' },
   { path: '/safety',       icon: 'ti-shield-check', label: 'Safety'   },
 ];
 

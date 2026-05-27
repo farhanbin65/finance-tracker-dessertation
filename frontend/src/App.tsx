@@ -1,6 +1,7 @@
 import { useAuth0 } from '@auth0/auth0-react'
 import { Navigate, Routes, Route } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
+import DashboardPage from './pages/DashboardPage'
 import TransactionsPage from './pages/TransactionsPage'
 import BudgetPage from './pages/BudgetPage'
 import GoalsPage from './pages/GoalsPage'
@@ -36,7 +37,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
-        <Route index element={<Navigate to="/transactions" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="budget" element={<BudgetPage />} />
         <Route path="goals" element={<GoalsPage />} />
@@ -45,7 +47,7 @@ export default function App() {
       </Route>
 
       <Route path="/login" element={<LoginPage />} />
-      <Route path="*" element={<Navigate to="/transactions" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )
 }
