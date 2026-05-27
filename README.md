@@ -1,6 +1,6 @@
 # FinSight — Personal Finance Intelligence Platform
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/farhanbin65/finance-tracker-dessertation/deploy.yml?branch=main&label=build)
+![Status](https://img.shields.io/badge/status-live-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Flask](https://img.shields.io/badge/flask-3.x-lightgrey)
