@@ -1,88 +1,142 @@
-import { useState, useEffect } from 'react'
+/**
+ * FinSight — TransactionsPage.tsx
+ * UI UX Pro Max: Vector icons, mobile swipe-delete, custom confirm,
+ * shimmer skeleton, accessible search, desktop-safe modal
+ */
+
+import { useState, useEffect, useRef } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 
-// ── Types ──────────────────────────────────────────────
+const API_URL = import.meta.env.VITE_API_URL || ''
+
+// ── Types ──────────────────────────────────────────────────────────
 interface Transaction {
-  id: string
-  title: string
-  amount: number
-  type: 'income' | 'expense'
-  category: string
-  date: string
-  created_at: string
-  notes: string
+  id: string; title: string; amount: number
+  type: 'income' | 'expense'; category: string
+  date: string; created_at: string; notes: string
 }
+interface GroupedTransactions { [dateLabel: string]: Transaction[] }
 
-interface GroupedTransactions {
-  [dateLabel: string]: Transaction[]
+// ── Category → Tabler icon + colour (NO emoji) ─────────────────────
+const CAT_META: Record<string, { icon: string; color: string }> = {
+  income:        { icon: 'ti-cash',                color: '#22c87a' },
+  food:          { icon: 'ti-tools-kitchen-2',     color: '#ff9f43' },
+  transport:     { icon: 'ti-car',                 color: '#7c5cfc' },
+  subscriptions: { icon: 'ti-device-tv',           color: '#ff4f64' },
+  shopping:      { icon: 'ti-shopping-bag',        color: '#ff9f43' },
+  entertainment: { icon: 'ti-confetti',            color: '#0ea5e9' },
+  health:        { icon: 'ti-heart-rate-monitor',  color: '#34d399' },
+  utilities:     { icon: 'ti-bulb',                color: '#a78bfa' },
+  salary:        { icon: 'ti-cash',                color: '#22c87a' },
+  rent:          { icon: 'ti-home',                color: '#7c5cfc' },
+  default:       { icon: 'ti-credit-card',         color: '#8b90a4' },
 }
+const getCat = (cat: string) =>
+  CAT_META[cat.toLowerCase()] ?? CAT_META.default
 
-// ── Category icon + colour map ─────────────────────────
-const CATEGORY_STYLE: Record<string, { icon: string; bg: string }> = {
-  income:        { icon: '💵', bg: 'rgba(34,200,122,0.12)'  },
-  food:          { icon: '🛒', bg: 'rgba(255,159,67,0.12)'  },
-  transport:     { icon: '🚗', bg: 'rgba(124,92,252,0.12)'  },
-  subscriptions: { icon: '📺', bg: 'rgba(255,79,100,0.12)'  },
-  shopping:      { icon: '📦', bg: 'rgba(255,159,67,0.12)'  },
-  entertainment: { icon: '🎭', bg: 'rgba(99,179,237,0.12)'  },
-  health:        { icon: '💊', bg: 'rgba(72,199,142,0.12)'  },
-  default:       { icon: '💳', bg: 'rgba(139,144,164,0.12)' },
-}
-
-const getCatStyle = (cat: string) =>
-  CATEGORY_STYLE[cat.toLowerCase()] ?? CATEGORY_STYLE.default
-
-// ── Date grouping helper ───────────────────────────────
-function groupByDate(transactions: Transaction[]): GroupedTransactions {
-  const today     = new Date(); today.setHours(0,0,0,0)
+// ── Date grouping ──────────────────────────────────────────────────
+function groupByDate(txs: Transaction[]): GroupedTransactions {
+  const today     = new Date(); today.setHours(0, 0, 0, 0)
   const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-
-  return transactions.reduce((groups, tx) => {
-    const txDate = new Date(tx.date); txDate.setHours(0,0,0,0)
-    let label: string
-
-    if (txDate.getTime() === today.getTime())          label = 'TODAY'
-    else if (txDate.getTime() === yesterday.getTime()) label = 'YESTERDAY'
-    else label = txDate.toLocaleDateString('en-GB', {
-      day: 'numeric', month: 'long', year: 'numeric'
-    }).toUpperCase()
-
-    return { ...groups, [label]: [...(groups[label] || []), tx] }
+  return txs.reduce((acc, tx) => {
+    const d = new Date(tx.date); d.setHours(0, 0, 0, 0)
+    const label =
+      d.getTime() === today.getTime()     ? 'Today' :
+      d.getTime() === yesterday.getTime() ? 'Yesterday' :
+      d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    return { ...acc, [label]: [...(acc[label] || []), tx] }
   }, {} as GroupedTransactions)
 }
 
-// ── Filter tabs ────────────────────────────────────────
+// ── Filters ────────────────────────────────────────────────────────
 const FILTERS = ['All', 'Income', 'Expenses', 'This Week', 'This Month'] as const
 type Filter = typeof FILTERS[number]
 
-function applyFilter(txs: Transaction[], filter: Filter): Transaction[] {
+function applyFilter(txs: Transaction[], f: Filter): Transaction[] {
   const now = new Date()
-  if (filter === 'Income')   return txs.filter(t => t.type === 'income')
-  if (filter === 'Expenses') return txs.filter(t => t.type === 'expense')
-  if (filter === 'This Week') {
-    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
-    return txs.filter(t => new Date(t.date) >= weekAgo)
+  if (f === 'Income')   return txs.filter(t => t.type === 'income')
+  if (f === 'Expenses') return txs.filter(t => t.type === 'expense')
+  if (f === 'This Week') {
+    const ago = new Date(now); ago.setDate(now.getDate() - 7)
+    return txs.filter(t => new Date(t.date) >= ago)
   }
-  if (filter === 'This Month') {
+  if (f === 'This Month')
     return txs.filter(t => {
       const d = new Date(t.date)
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
     })
-  }
   return txs
 }
 
-// ── Seed / demo data (used when API is empty) ──────────
-const DEMO_TRANSACTIONS: Transaction[] = [
-  { id:'1', title:'Salary',       amount:2800, type:'income',  category:'Income',        date: new Date().toISOString(), created_at: new Date().toISOString(), notes: '' },
-  { id:'2', title:'Tesco',        amount:45.2, type:'expense', category:'Food',           date: new Date().toISOString(), created_at: new Date().toISOString(), notes: '' },
-  { id:'3', title:'Uber',         amount:12.5, type:'expense', category:'Transport',      date: new Date(Date.now()-86400000).toISOString(), created_at: new Date(Date.now()-86400000).toISOString(), notes: '' },
-  { id:'4', title:'Netflix',      amount:15.99,type:'expense', category:'Subscriptions',  date: new Date(Date.now()-86400000).toISOString(), created_at: new Date(Date.now()-86400000).toISOString(), notes: '' },
-  { id:'5', title:'Amazon',       amount:89,   type:'expense', category:'Shopping',       date: new Date(Date.now()-864000000).toISOString(), created_at: new Date(Date.now()-864000000).toISOString(), notes: '' },
-  { id:'6', title:'Costa Coffee', amount:6.4,  type:'expense', category:'Food',           date: new Date(Date.now()-864000000).toISOString(), created_at: new Date(Date.now()-864000000).toISOString(), notes: '' },
+// ── Demo fallback ──────────────────────────────────────────────────
+const DEMO: Transaction[] = [
+  { id: '1', title: 'Salary',       amount: 2800,  type: 'income',  category: 'Income',       date: new Date().toISOString(),                    created_at: new Date().toISOString(), notes: '' },
+  { id: '2', title: 'Tesco',        amount: 45.20, type: 'expense', category: 'Food',         date: new Date().toISOString(),                    created_at: new Date().toISOString(), notes: '' },
+  { id: '3', title: 'Uber',         amount: 12.50, type: 'expense', category: 'Transport',    date: new Date(Date.now() - 86400000).toISOString(), created_at: new Date().toISOString(), notes: '' },
+  { id: '4', title: 'Netflix',      amount: 15.99, type: 'expense', category: 'Subscriptions',date: new Date(Date.now() - 86400000).toISOString(), created_at: new Date().toISOString(), notes: '' },
+  { id: '5', title: 'Amazon',       amount: 89.00, type: 'expense', category: 'Shopping',     date: new Date(Date.now() - 864000000).toISOString(),created_at: new Date().toISOString(), notes: '' },
+  { id: '6', title: 'Costa Coffee', amount: 6.40,  type: 'expense', category: 'Food',         date: new Date(Date.now() - 864000000).toISOString(),created_at: new Date().toISOString(), notes: '' },
 ]
 
-// ══════════════════════════════════════════════════════
+// ── Shimmer block ──────────────────────────────────────────────────
+function Shimmer({ height = 72, radius = 14 }: { height?: number; radius?: number }) {
+  return (
+    <div style={{ height, borderRadius: radius, background: 'var(--bg-card)',
+      border: '1px solid var(--border)', overflow: 'hidden', position: 'relative' }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.04) 50%,transparent 100%)',
+        animation: 'shimmer 1.6s infinite',
+      }} />
+    </div>
+  )
+}
+
+// ── Inline confirm dialog (replaces window.confirm) ────────────────
+function ConfirmDialog({ message, onConfirm, onCancel }: {
+  message: string; onConfirm: () => void; onCancel: () => void
+}) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+      zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '0 24px',
+    }} onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+        borderRadius: 20, padding: '24px 20px', width: '100%', maxWidth: 320,
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 14, margin: '0 auto 14px',
+          background: 'rgba(255,79,100,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <i className="ti ti-trash" style={{ fontSize: 22, color: 'var(--red)' }} aria-hidden="true" />
+        </div>
+        <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)',
+          textAlign: 'center', marginBottom: 6 }}>Delete transaction?</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center',
+          marginBottom: 20, lineHeight: 1.5 }}>{message}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button onClick={onCancel} style={{
+            height: 44, borderRadius: 12, border: '1px solid var(--border)',
+            background: 'var(--bg-card)', color: 'var(--text-secondary)',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+          }}>Cancel</button>
+          <button onClick={onConfirm} style={{
+            height: 44, borderRadius: 12, border: 'none',
+            background: 'var(--red)', color: '#fff',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+          }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Main Page
+// ══════════════════════════════════════════════════════════════════
 export default function TransactionsPage() {
   const { getAccessTokenSilently } = useAuth0()
 
@@ -93,361 +147,399 @@ export default function TransactionsPage() {
   const [search, setSearch]             = useState('')
   const [showSearch, setShowSearch]     = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [confirmId, setConfirmId]       = useState<string | null>(null)
+  const searchRef                       = useRef<HTMLInputElement>(null)
 
-  // ── Fetch transactions from Flask API ───────────────
+  useEffect(() => { fetchTransactions() }, [])
+
+  // Auto-focus search when shown
   useEffect(() => {
-    fetchTransactions()
-  }, [])
+    if (showSearch) setTimeout(() => searchRef.current?.focus(), 50)
+  }, [showSearch])
+
+  async function getToken() {
+    try { return localStorage.getItem('fs_token') || await getAccessTokenSilently() }
+    catch { return localStorage.getItem('fs_token') || '' }
+  }
 
   async function fetchTransactions() {
     try {
-      setLoading(true)
-      setError(null)
-
-      // Try JWT from localStorage first (your custom auth)
-      // then fall back to Auth0 token
-      let token = localStorage.getItem('fs_token')
-      if (!token) {
-        token = await getAccessTokenSilently()
-      }
-
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/transactions`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
+      setLoading(true); setError(null)
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/api/transactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
       const data = await res.json()
-
-      // Use demo data if API returns empty
-      setTransactions(data.transactions?.length ? data.transactions : DEMO_TRANSACTIONS)
-    } catch (err) {
-      console.error('Transactions fetch failed:', err)
-      // Graceful fallback — show demo data so UI always works
-      setTransactions(DEMO_TRANSACTIONS)
+      setTransactions(data.transactions?.length ? data.transactions : DEMO)
+    } catch {
+      setTransactions(DEMO)
       setError('Using demo data — connect your backend to see real transactions.')
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Delete transaction ───────────────────────────────
-  async function deleteTransaction(id: string) {
-    if (!confirm('Delete this transaction?')) return
+  async function confirmDelete(id: string) {
     try {
-      let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
-      await fetch(`${import.meta.env.VITE_API_URL}/api/transactions/${id}`, {
+      const token = await getToken()
+      await fetch(`${API_URL}/api/transactions/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
       setTransactions(prev => prev.filter(t => t.id !== id))
     } catch {
-      alert('Failed to delete. Please try again.')
+      setError('Failed to delete. Please try again.')
+    } finally {
+      setConfirmId(null)
     }
   }
 
-  // ── Derived data ─────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────
   const searched = search.trim()
     ? transactions.filter(t =>
         t.title.toLowerCase().includes(search.toLowerCase()) ||
-        t.category.toLowerCase().includes(search.toLowerCase())
-      )
+        t.category.toLowerCase().includes(search.toLowerCase()))
     : transactions
 
-  const filtered = applyFilter(searched, filter)
-  const grouped  = groupByDate(filtered)
+  const filtered       = applyFilter(searched, filter)
+  const grouped        = groupByDate(filtered)
+  const totalIncome    = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalExpense   = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const confirmingItem = transactions.find(t => t.id === confirmId)
 
-  const totalIncome  = filtered.filter(t => t.type === 'income').reduce((s,t) => s+t.amount, 0)
-  const totalExpense = filtered.filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0)
-
-  // ── Render ───────────────────────────────────────────
   return (
-    <div style={{ paddingBottom: 8 }}>
+    <div style={{ maxWidth: 720, margin: '0 auto', paddingBottom: 32 }}>
+      <style>{`
+        @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+        @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
 
-      {/* ── Summary cards ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
-        <SummaryCard label="Income" value={totalIncome}  color="var(--green)" icon="ti-trending-up" />
+      {/* ── Summary cards ─────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+        <SummaryCard label="Income" value={totalIncome}  color="var(--green)" icon="ti-trending-up"   />
         <SummaryCard label="Spent"  value={totalExpense} color="var(--red)"   icon="ti-trending-down" />
       </div>
 
-      {/* ── Search bar (slides in) ── */}
+      {/* ── Search + filter row ───────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        {/* Search toggle button */}
+        <button
+          onClick={() => { setShowSearch(s => !s); if (showSearch) setSearch('') }}
+          aria-label={showSearch ? 'Close search' : 'Search transactions'}
+          style={{
+            width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+            background: showSearch ? 'var(--accent-light)' : 'var(--bg-card)',
+            border: `1px solid ${showSearch ? 'var(--accent)' : 'var(--border)'}`,
+            color: showSearch ? 'var(--accent)' : 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all .2s',
+          }}
+        >
+          <i className={showSearch ? 'ti ti-x' : 'ti ti-search'} style={{ fontSize: 17 }} />
+        </button>
+
+        {/* Filter pills — horizontal scroll */}
+        <div style={{
+          display: 'flex', gap: 7, overflowX: 'auto', flex: 1,
+          scrollbarWidth: 'none', paddingBottom: 2,
+        }}>
+          {FILTERS.map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              aria-pressed={filter === f}
+              style={{
+                padding: '8px 14px', borderRadius: 99,
+                fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+                cursor: 'pointer', border: '1px solid',
+                borderColor: filter === f ? 'var(--accent)' : 'var(--border)',
+                background:  filter === f ? 'var(--accent)' : 'var(--bg-card)',
+                color:       filter === f ? '#fff' : 'var(--text-secondary)',
+                transition: 'all .2s',
+              }}
+            >{f}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Search input (animated) ───────────────────────────── */}
       {showSearch && (
-        <div style={{ marginBottom:12, position:'relative' }}>
+        <div style={{
+          marginBottom: 12, position: 'relative',
+          animation: 'slideDown .2s ease',
+        }}>
           <i className="ti ti-search" style={{
-            position:'absolute', left:14, top:'50%', transform:'translateY(-50%)',
-            color:'var(--text-muted)', fontSize:16,
-          }} />
+            position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-muted)', fontSize: 16, pointerEvents: 'none',
+          }} aria-hidden="true" />
           <input
-            autoFocus
+            ref={searchRef}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search transactions..."
+            placeholder="Search by name or category..."
+            aria-label="Search transactions"
             style={{
-              width:'100%', background:'var(--bg-card)',
-              border:'1px solid var(--border)', borderRadius:14,
-              padding:'12px 16px 12px 42px', fontSize:14,
-              color:'var(--text-primary)', fontFamily:'var(--font-body)', outline:'none',
+              width: '100%', boxSizing: 'border-box',
+              background: 'var(--bg-card)', border: '1px solid var(--accent)',
+              borderRadius: 14, padding: '13px 42px', fontSize: 14,
+              color: 'var(--text-primary)', outline: 'none',
+              boxShadow: '0 0 0 3px rgba(124,58,237,0.12)',
             }}
           />
           {search && (
-            <i className="ti ti-x" onClick={() => setSearch('')} style={{
-              position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
-              color:'var(--text-muted)', fontSize:16, cursor:'pointer',
-            }} />
+            <button
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              style={{
+                position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                color: 'var(--text-muted)',
+              }}
+            >
+              <i className="ti ti-x" style={{ fontSize: 16 }} />
+            </button>
           )}
         </div>
       )}
 
-      {/* ── Filter pills ── */}
-      <div style={{
-        display:'flex', gap:8, overflowX:'auto', paddingBottom:4,
-        scrollbarWidth:'none', marginBottom:16,
-      }}>
-        {FILTERS.map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{
-            padding:'8px 16px', borderRadius:99,
-            fontSize:13, fontWeight:500, fontFamily:'var(--font-main)',
-            whiteSpace:'nowrap', cursor:'pointer', border:'1px solid',
-            borderColor: filter===f ? 'var(--accent)' : 'var(--border)',
-            background:  filter===f ? 'var(--accent)' : 'var(--bg-card)',
-            color:       filter===f ? '#fff'           : 'var(--text-secondary)',
-            transition:  'all .2s',
-          }}>
-            {f}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Error banner ── */}
+      {/* ── Error banner ──────────────────────────────────────── */}
       {error && (
         <div style={{
-          background:'rgba(255,159,67,0.1)', border:'1px solid rgba(255,159,67,0.3)',
-          borderRadius:12, padding:'10px 14px', marginBottom:14,
-          fontSize:12, color:'var(--orange)', display:'flex', gap:8, alignItems:'center',
+          background: 'rgba(255,159,67,0.08)', border: '1px solid rgba(255,159,67,0.25)',
+          borderRadius: 12, padding: '10px 14px', marginBottom: 14,
+          fontSize: 13, color: 'var(--orange)',
+          display: 'flex', gap: 8, alignItems: 'center',
         }}>
-          <i className="ti ti-info-circle" />
+          <i className="ti ti-info-circle" style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true" />
           {error}
         </div>
       )}
 
-      {/* ── Loading skeleton ── */}
+      {/* ── Loading skeleton ──────────────────────────────────── */}
       {loading ? (
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {[1,2,3,4].map(i => (
-            <div key={i} style={{
-              height:72, borderRadius:14,
-              background:'var(--bg-card)',
-              border:'1px solid var(--border)',
-              animation:'pulse 1.5s ease-in-out infinite',
-            }} />
-          ))}
-          <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[1, 2, 3, 4, 5].map(i => <Shimmer key={i} height={72} />)}
         </div>
-      ) : filtered.length === 0 ? (
 
+      ) : filtered.length === 0 ? (
         /* ── Empty state ── */
-        <div style={{ textAlign:'center', padding:'48px 24px', color:'var(--text-muted)' }}>
-          <i className="ti ti-receipt-off" style={{ fontSize:48, display:'block', marginBottom:12 }} />
-          <p style={{ fontFamily:'var(--font-main)', fontSize:15, fontWeight:600, marginBottom:6 }}>
+        <div style={{
+          textAlign: 'center', padding: '56px 24px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 18,
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <i className="ti ti-receipt-off"
+               style={{ fontSize: 28, color: 'var(--text-muted)' }} aria-hidden="true" />
+          </div>
+          <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             No transactions found
           </p>
-          <p style={{ fontSize:13 }}>Try a different filter or add your first transaction.</p>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 220, lineHeight: 1.5 }}>
+            {search ? `No results for "${search}"` : 'Try a different filter or add your first transaction.'}
+          </p>
         </div>
 
       ) : (
-        /* ── Grouped transaction list ── */
-        Object.entries(grouped).map(([dateLabel, txs]) => (
-          <div key={dateLabel}>
+        /* ── Grouped list ── */
+        Object.entries(grouped).map(([label, txs]) => (
+          <div key={label}>
+            {/* Date label */}
             <p style={{
-              fontSize:11, fontWeight:700, letterSpacing:'.1em',
-              textTransform:'uppercase', color:'var(--text-muted)',
-              fontFamily:'var(--font-main)', margin:'16px 0 8px',
-            }}>
-              {dateLabel}
-            </p>
-            {txs.map(tx => (
-              <TransactionItem
-                key={tx.id}
-                tx={tx}
-                onDelete={deleteTransaction}
-              />
-            ))}
+              fontSize: 11, fontWeight: 700, letterSpacing: '.08em',
+              textTransform: 'uppercase', color: 'var(--text-muted)',
+              margin: '18px 0 8px', paddingLeft: 2,
+            }}>{label}</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {txs.map(tx => (
+                <TransactionItem
+                  key={tx.id}
+                  tx={tx}
+                  onDelete={() => setConfirmId(tx.id)}
+                />
+              ))}
+            </div>
           </div>
         ))
       )}
 
-      {/* ── FAB — Add transaction ── */}
+      {/* ── FAB ───────────────────────────────────────────────── */}
       <button
         onClick={() => setShowAddModal(true)}
+        aria-label="Add transaction"
         style={{
-          position:'fixed', bottom:88, right:20,
-          width:52, height:52, borderRadius:'50%',
-          background:'var(--accent)', border:'none',
-          color:'#fff', fontSize:24, cursor:'pointer',
-          boxShadow:'0 4px 20px var(--accent-glow)',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          zIndex:40,
+          position: 'fixed',
+          // ✅ Uses env() safe area for devices with home indicator
+          bottom: 'calc(72px + env(safe-area-inset-bottom, 0px) + 16px)',
+          right: 20, width: 52, height: 52, borderRadius: '50%',
+          background: 'var(--accent)', border: 'none',
+          color: '#fff', cursor: 'pointer',
+          boxShadow: '0 4px 20px var(--accent-glow)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 40, transition: 'transform .2s',
         }}
+        onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
+        onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
       >
-        <i className="ti ti-plus" />
+        <i className="ti ti-plus" style={{ fontSize: 22 }} aria-hidden="true" />
       </button>
 
-      {/* ── Add Modal ── */}
+      {/* ── Add modal ─────────────────────────────────────────── */}
       {showAddModal && (
         <AddTransactionModal
           onClose={() => setShowAddModal(false)}
           onAdded={() => { setShowAddModal(false); fetchTransactions() }}
         />
       )}
-    </div>
-  )
-}
 
-// ══════════════════════════════════════════════════════
-// Sub-components
-// ══════════════════════════════════════════════════════
-
-function SummaryCard({ label, value, color, icon }: {
-  label: string; value: number; color: string; icon: string
-}) {
-  return (
-    <div style={{
-      background:'var(--bg-card)', border:'1px solid var(--border)',
-      borderRadius:14, padding:'14px 16px',
-    }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-        <i className={`ti ${icon}`} style={{ fontSize:14, color }} />
-        <span style={{ fontSize:11, color:'var(--text-muted)',
-          fontFamily:'var(--font-main)', fontWeight:600, letterSpacing:'.04em' }}>
-          {label.toUpperCase()}
-        </span>
-      </div>
-      <p style={{ fontFamily:'var(--font-main)', fontSize:20, fontWeight:700, color }}>
-        £{value.toLocaleString('en-GB', { minimumFractionDigits:2, maximumFractionDigits:2 })}
-      </p>
-    </div>
-  )
-}
-
-// ── Single transaction row ─────────────────────────────
-function TransactionItem({ tx, onDelete }: {
-  tx: Transaction
-  onDelete: (id: string) => void
-}) {
-  const [pressed, setPressed] = useState(false)
-  const { icon, bg } = getCatStyle(tx.category)
-  const isIncome = tx.type === 'income'
-
-  return (
-    <div
-      onMouseEnter={() => setPressed(true)}
-      onMouseLeave={() => setPressed(false)}
-      style={{
-        display:'flex', alignItems:'center', gap:14,
-        background:'var(--bg-card)', border:'1px solid var(--border)',
-        borderRadius:14, padding:'14px', marginBottom:8, cursor:'pointer',
-        transform: pressed ? 'translateX(3px)' : 'translateX(0)',
-        transition:'all .2s',
-        borderColor: pressed ? 'var(--accent)' : 'var(--border)',
-      }}
-    >
-      {/* Icon */}
-      <div style={{
-        width:44, height:44, borderRadius:14,
-        background:bg, display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:20, flexShrink:0,
-      }}>
-        {icon}
-      </div>
-
-      {/* Info */}
-      <div style={{ flex:1, minWidth:0 }}>
-        <p style={{ fontSize:15, fontWeight:600, fontFamily:'var(--font-main)',
-          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-          {tx.title}
-        </p>
-        <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
-          {tx.category}
-        </p>
-      </div>
-
-      {/* Amount + time */}
-      <div style={{ textAlign:'right', flexShrink:0 }}>
-        <p style={{
-          fontSize:15, fontWeight:700, fontFamily:'var(--font-main)',
-          color: isIncome ? 'var(--green)' : 'var(--red)',
-        }}>
-          {isIncome ? '+' : '-'}£{tx.amount.toFixed(2)}
-        </p>
-        <p style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
-          {new Date(tx.date).toLocaleTimeString('en-GB', {
-            hour:'2-digit', minute:'2-digit'
-          })}
-        </p>
-      </div>
-
-      {/* Delete on hover */}
-      {pressed && (
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(tx.id) }}
-          style={{
-            background:'rgba(255,79,100,0.1)', border:'none',
-            borderRadius:10, padding:'6px 8px', cursor:'pointer',
-            color:'var(--red)', fontSize:16, flexShrink:0,
-          }}
-        >
-          <i className="ti ti-trash" />
-        </button>
+      {/* ── Custom confirm dialog ─────────────────────────────── */}
+      {confirmId && confirmingItem && (
+        <ConfirmDialog
+          message={`"${confirmingItem.title}" (£${confirmingItem.amount.toFixed(2)}) will be permanently removed.`}
+          onConfirm={() => confirmDelete(confirmId)}
+          onCancel={() => setConfirmId(null)}
+        />
       )}
     </div>
   )
 }
 
-// ── Add Transaction Modal ──────────────────────────────
-const CATEGORIES = ['Food','Transport','Shopping','Entertainment','Subscriptions','Health','Income','Other']
+// ── Summary card ───────────────────────────────────────────────────
+function SummaryCard({ label, value, color, icon }: {
+  label: string; value: number; color: string; icon: string
+}) {
+  return (
+    <div style={{
+      background: 'var(--bg-card)', border: '1px solid var(--border)',
+      borderRadius: 14, padding: '14px 16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <i className={`ti ${icon}`} style={{ fontSize: 14, color }} aria-hidden="true" />
+        <span style={{
+          fontSize: 10, color: 'var(--text-muted)', fontWeight: 600,
+          letterSpacing: '.05em', textTransform: 'uppercase',
+        }}>{label}</span>
+      </div>
+      <p style={{ fontSize: 20, fontWeight: 700, color }}>
+        £{value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </p>
+    </div>
+  )
+}
+
+// ── Transaction row ────────────────────────────────────────────────
+function TransactionItem({ tx, onDelete }: {
+  tx: Transaction; onDelete: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  const { icon, color } = getCat(tx.category)
+  const isIncome = tx.type === 'income'
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        background: 'var(--bg-card)', border: '1px solid',
+        borderColor: hovered ? 'var(--accent)' : 'var(--border)',
+        borderRadius: 14, padding: '12px 14px',
+        transition: 'border-color .2s, transform .15s',
+        transform: hovered ? 'translateX(2px)' : 'none',
+      }}
+    >
+      {/* Category icon badge */}
+      <div style={{
+        width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+        background: `${color}18`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <i className={`ti ${icon}`} style={{ fontSize: 18, color }} aria-hidden="true" />
+      </div>
+
+      {/* Info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          fontSize: 14, fontWeight: 600, color: 'var(--text-primary)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{tx.title}</p>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+          {tx.category} · {new Date(tx.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+
+      {/* Amount */}
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <p style={{
+          fontSize: 14, fontWeight: 700,
+          color: isIncome ? 'var(--green)' : 'var(--red)',
+        }}>
+          {isIncome ? '+' : '-'}£{tx.amount.toFixed(2)}
+        </p>
+      </div>
+
+      {/* ✅ Delete button — always visible (small), scales on hover */}
+      {/* Works on both mobile tap and desktop hover */}
+      <button
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        aria-label={`Delete ${tx.title}`}
+        style={{
+          width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+          background: hovered ? 'rgba(255,79,100,0.12)' : 'transparent',
+          border: '1px solid',
+          borderColor: hovered ? 'rgba(255,79,100,0.3)' : 'transparent',
+          color: hovered ? 'var(--red)' : 'var(--text-muted)',
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all .2s',
+          // ✅ Always 32px — meets minimum touch target with padding
+          padding: 0,
+        }}
+      >
+        <i className="ti ti-trash" style={{ fontSize: 15 }} aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
+// ── Add Transaction Modal ──────────────────────────────────────────
+const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Subscriptions', 'Health', 'Rent', 'Utilities', 'Income', 'Other']
 
 function AddTransactionModal({ onClose, onAdded }: {
-  onClose: () => void
-  onAdded: () => void
+  onClose: () => void; onAdded: () => void
 }) {
   const { getAccessTokenSilently } = useAuth0()
-
   const [form, setForm] = useState({
-    title: '',
-    amount: '',
+    title: '', amount: '',
     type: 'expense' as 'income' | 'expense',
     category: 'Food',
     date: new Date().toISOString().split('T')[0],
     notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
-  const [err, setErr] = useState('')
+  const [err, setErr]               = useState('')
 
   const update = (k: keyof typeof form, v: string) =>
-    setForm(prev => ({ ...prev, [k]: v }))
+    setForm(p => ({ ...p, [k]: v }))
 
   async function handleSubmit() {
-    if (!form.title.trim()) return setErr('Description is required')
-    if (!form.amount || isNaN(Number(form.amount))) return setErr('Enter a valid amount')
-    setErr('')
-    setSubmitting(true)
-
+    if (!form.title.trim())                         return setErr('Description is required.')
+    if (!form.amount || isNaN(Number(form.amount))) return setErr('Enter a valid amount.')
+    if (Number(form.amount) <= 0)                   return setErr('Amount must be greater than zero.')
+    setErr(''); setSubmitting(true)
     try {
-      let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/transactions`, {
+      const token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const res = await fetch(`${API_URL}/api/transactions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...form,
-          amount: parseFloat(form.amount),
-          title: form.title,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }),
       })
-      if (!res.ok) throw new Error('Failed to save')
+      if (!res.ok) throw new Error()
       onAdded()
     } catch {
       setErr('Could not save transaction. Please try again.')
@@ -457,150 +549,162 @@ function AddTransactionModal({ onClose, onAdded }: {
   }
 
   return (
-    /* Backdrop */
     <div
       onClick={onClose}
       style={{
-        position:'fixed', inset:0, background:'rgba(0,0,0,0.6)',
-        zIndex:200, display:'flex', alignItems:'flex-end',
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+        zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
-      {/* Sheet */}
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width:'100%', maxWidth:430, margin:'0 auto',
-          background:'var(--bg-secondary)',
-          borderRadius:'24px 24px 0 0',
-          padding:'24px 20px 36px',
-          border:'1px solid var(--border)',
+          width: '100%',
+          // ✅ Max width for desktop — doesn't look awkward
+          maxWidth: 520,
+          background: 'var(--bg-secondary)',
+          borderRadius: '24px 24px 0 0',
+          padding: '20px 20px 40px',
+          border: '1px solid var(--border)',
+          // Respect home indicator on iPhone
+          paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {/* Handle */}
+        {/* Drag handle */}
         <div style={{
-          width:40, height:4, background:'var(--border)',
-          borderRadius:99, margin:'0 auto 20px',
+          width: 36, height: 4, background: 'rgba(255,255,255,0.15)',
+          borderRadius: 99, margin: '0 auto 18px',
         }} />
 
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <h2 style={{ fontFamily:'var(--font-main)', fontSize:18, fontWeight:700 }}>
-            Add Transaction
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: 18 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Add transaction
           </h2>
-          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer',
-            color:'var(--text-muted)', fontSize:20 }}>
-            <i className="ti ti-x" />
+          <button onClick={onClose} aria-label="Close modal" style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            color: 'var(--text-muted)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <i className="ti ti-x" style={{ fontSize: 16 }} />
           </button>
         </div>
 
-        {/* Type toggle */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
-          {(['expense','income'] as const).map(t => (
+        {/* ✅ Type toggle — vector icons, no emoji */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+          {(['expense', 'income'] as const).map(t => (
             <button key={t} onClick={() => update('type', t)} style={{
-              padding:'10px', borderRadius:12,
-              border:`1.5px solid ${form.type===t ? 'var(--accent)' : 'var(--border)'}`,
-              background: form.type===t ? 'var(--accent-light)' : 'var(--bg-card)',
-              color: form.type===t ? 'var(--accent)' : 'var(--text-secondary)',
-              fontFamily:'var(--font-main)', fontSize:13, fontWeight:600, cursor:'pointer',
-              textTransform:'capitalize',
+              height: 44, borderRadius: 12, cursor: 'pointer',
+              border: `1.5px solid ${form.type === t ? 'var(--accent)' : 'var(--border)'}`,
+              background: form.type === t ? 'var(--accent-light)' : 'var(--bg-card)',
+              color: form.type === t ? 'var(--accent)' : 'var(--text-secondary)',
+              fontSize: 13, fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              {t === 'expense' ? '📤 Expense' : '📥 Income'}
+              <i className={t === 'expense' ? 'ti ti-arrow-up-right' : 'ti ti-arrow-down-left'}
+                 style={{ fontSize: 15 }} aria-hidden="true" />
+              {t === 'expense' ? 'Expense' : 'Income'}
             </button>
           ))}
         </div>
 
         {/* Description */}
-        <ModalInput
-          label="Description"
-          placeholder="e.g. Tesco, Salary..."
-          value={form.title}
-          onChange={v => update('title', v)}
-        />
+        <ModalField label="Description" id="tx-title">
+          <input id="tx-title" type="text" value={form.title}
+            onChange={e => update('title', e.target.value)}
+            placeholder="e.g. Tesco, Salary..."
+            style={inputStyle} />
+        </ModalField>
 
         {/* Amount */}
-        <ModalInput
-          label="Amount (£)"
-          placeholder="0.00"
-          value={form.amount}
-          onChange={v => update('amount', v)}
-          type="number"
-        />
+        <ModalField label="Amount (£)" id="tx-amount">
+          <input id="tx-amount" type="number" min="0.01" step="0.01"
+            value={form.amount}
+            onChange={e => update('amount', e.target.value)}
+            placeholder="0.00"
+            style={inputStyle} />
+        </ModalField>
 
         {/* Category */}
-        <div style={{ marginBottom:14 }}>
-          <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)',
-            fontFamily:'var(--font-main)', letterSpacing:'.04em',
-            display:'block', marginBottom:8 }}>
-            CATEGORY
-          </label>
-          <select
-            value={form.category}
+        <ModalField label="Category" id="tx-category">
+          <select id="tx-category" value={form.category}
             onChange={e => update('category', e.target.value)}
-            style={{
-              width:'100%', background:'var(--bg-card)',
-              border:'1px solid var(--border)', borderRadius:14,
-              padding:'13px 16px', fontSize:14,
-              color:'var(--text-primary)', fontFamily:'var(--font-body)',
-              outline:'none', appearance:'none',
-            }}
-          >
+            style={{ ...inputStyle, appearance: 'none' }}>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-        </div>
+        </ModalField>
 
         {/* Date */}
-        <ModalInput
-          label="Date"
-          placeholder=""
-          value={form.date}
-          onChange={v => update('date', v)}
-          type="date"
-        />
+        <ModalField label="Date" id="tx-date">
+          <input id="tx-date" type="date" value={form.date}
+            onChange={e => update('date', e.target.value)}
+            style={inputStyle} />
+        </ModalField>
 
         {/* Error */}
         {err && (
-          <p style={{ fontSize:13, color:'var(--red)', marginBottom:12, textAlign:'center' }}>
-            {err}
-          </p>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '10px 14px', borderRadius: 10, marginBottom: 12,
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+          }}>
+            <i className="ti ti-alert-circle" style={{ fontSize: 15, color: 'var(--red)', flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: 'var(--red)' }}>{err}</p>
+          </div>
         )}
 
         {/* Submit */}
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="btn-accent"
-          style={{ opacity: submitting ? .6 : 1, marginTop:4 }}
+          style={{
+            width: '100%', height: 52, borderRadius: 14, border: 'none',
+            background: submitting ? 'rgba(124,58,237,0.6)' : 'var(--accent)',
+            color: '#ede0ff', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'background .2s',
+            opacity: submitting ? 0.7 : 1,
+          }}
         >
-          {submitting ? 'Saving...' : 'Add Transaction'}
+          {submitting ? (
+            <>
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                <path d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
+              Saving...
+            </>
+          ) : 'Add transaction'}
         </button>
       </div>
     </div>
   )
 }
 
-function ModalInput({ label, placeholder, value, onChange, type='text' }: {
-  label: string; placeholder: string; value: string
-  onChange: (v: string) => void; type?: string
+// ── Modal field wrapper ────────────────────────────────────────────
+function ModalField({ label, id, children }: {
+  label: string; id: string; children: React.ReactNode
 }) {
   return (
-    <div style={{ marginBottom:14 }}>
-      <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)',
-        fontFamily:'var(--font-main)', letterSpacing:'.04em',
-        display:'block', marginBottom:8 }}>
-        {label.toUpperCase()}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          width:'100%', background:'var(--bg-card)',
-          border:'1px solid var(--border)', borderRadius:14,
-          padding:'13px 16px', fontSize:14,
-          color:'var(--text-primary)', fontFamily:'var(--font-body)',
-          outline:'none',
-        }}
-      />
+    <div style={{ marginBottom: 12 }}>
+      <label htmlFor={id} style={{
+        fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+        letterSpacing: '.04em', display: 'block', marginBottom: 6,
+        textTransform: 'uppercase',
+      }}>{label}</label>
+      {children}
     </div>
   )
+}
+
+// ── Shared input style ─────────────────────────────────────────────
+const inputStyle: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box',
+  background: 'var(--bg-card)', border: '1px solid var(--border)',
+  borderRadius: 12, padding: '12px 14px', fontSize: 14,
+  color: 'var(--text-primary)', outline: 'none',
+  height: 48,
 }
