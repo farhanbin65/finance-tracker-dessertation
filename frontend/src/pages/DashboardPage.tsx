@@ -135,6 +135,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading]           = useState(true)
   const [aiTip, setAiTip]               = useState<string>('')
+  const [aiTipLoading, setAiTipLoading] = useState(true)
 
   const userName = user?.name || localStorage.getItem('fs_name') || 'Farhan'
   const firstName = userName.split(' ')[0]
@@ -156,7 +157,7 @@ export default function DashboardPage() {
       const headers = { Authorization: `Bearer ${token}` }
       const base = import.meta.env.VITE_API_URL
 
-      // Fetch all 4 endpoints in parallel
+      // Step 1 — fetch core data first (fast)
       const [summaryRes, budgetsRes, goalsRes, txRes] = await Promise.all([
         fetch(`${base}/api/transactions/summary/monthly?year=${now.getFullYear()}&month=${now.getMonth()+1}`, { headers }),
         fetch(`${base}/api/budgets`, { headers }),
@@ -176,17 +177,20 @@ export default function DashboardPage() {
       setGoals(goalsData.goals?.slice(0, 3) || [])
       setTransactions(txData.transactions || [])
 
-      // Fetch AI tip after data loads
+      // Step 2 — show page immediately
+      setLoading(false)
+
+      // Step 3 — load AI tip in background (non-blocking)
       fetchAiTip(token, summaryData, budgetsData)
     } catch (err) {
       console.error('Dashboard fetch failed:', err)
-    } finally {
       setLoading(false)
     }
   }
 
   async function fetchAiTip(token: string, summaryData: any, budgetsData: any) {
     try {
+      setAiTipLoading(true)
       const context = {
         total_budget:  budgetsData.summary?.total_budgeted || 0,
         total_spent:   summaryData.total_expenses || 0,
@@ -204,7 +208,9 @@ export default function DashboardPage() {
       const data = await res.json()
       setAiTip(data.reply || '')
     } catch {
-      setAiTip('Tip: Try to save at least 20% of your income each month for long-term financial security.')
+      setAiTip('Tip: Try to save at least 20% of your income each month.')
+    } finally {
+      setAiTipLoading(false)
     }
   }
 
@@ -374,7 +380,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── AI insight card ── */}
-      {aiTip && (
+      {(aiTipLoading || aiTip) && (
         <div style={{
           background:'var(--bg-card)', border:'1px solid var(--border)',
           borderLeft:'3px solid var(--accent)',
@@ -388,14 +394,25 @@ export default function DashboardPage() {
           }}>
             🤖
           </div>
-          <div>
+          <div style={{ flex:1 }}>
             <p style={{ fontSize:11, fontWeight:700, color:'var(--accent)',
               fontFamily:'var(--font-main)', letterSpacing:'.04em', marginBottom:4 }}>
               FINSIGHT AI
             </p>
-            <p style={{ fontSize:13, lineHeight:1.6, color:'var(--text-secondary)' }}>
-              {aiTip}
-            </p>
+            {aiTipLoading ? (
+              /* Shimmer while AI thinks */
+              <div style={{
+                height:14, borderRadius:6, marginBottom:6,
+                background:'var(--bg-card2)',
+                animation:'pulse 1.5s ease-in-out infinite',
+                width:'90%',
+              }} />
+            ) : (
+              <p style={{ fontSize:13, lineHeight:1.6, color:'var(--text-secondary)' }}>
+                {aiTip}
+              </p>
+            )}
+            <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
           </div>
         </div>
       )}

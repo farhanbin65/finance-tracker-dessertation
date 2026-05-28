@@ -81,4 +81,7 @@ def create_app() -> Flask:
         return jsonify({"error": "Internal server error"}), 500
 
     logger.info("FinSight app created", extra={"debug": config.DEBUG})
+    # ── Keep-alive (production only) ──────────────────────
+    from app.core.keepalive import start_keepalive
+    start_keepalive()
     return app
