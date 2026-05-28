@@ -1,57 +1,115 @@
+/**
+ * FinSight — BudgetPage.tsx
+ * UI UX Pro Max: Vector icons, mobile-safe actions, custom confirm,
+ * shimmer skeleton, accessible modal, desktop-safe layout
+ */
+
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 
-// ── Types ──────────────────────────────────────────────
+const API_URL = import.meta.env.VITE_API_URL || ''
+
+// ── Types ──────────────────────────────────────────────────────────
 interface BudgetCategory {
-  id: string
-  category: string
-  limit: number
-  spent: number
-  month: number
-  year: number
-  alert_threshold: number
+  id: string; category: string; limit: number; spent: number
+  month: number; year: number; alert_threshold: number
 }
-
 interface BudgetSummary {
-  total_allocated: number
-  total_spent: number
-  percentage: number
+  total_allocated: number; total_spent: number; percentage: number
 }
 
-// ── Category icon map ──────────────────────────────────
-const CAT_ICONS: Record<string, string> = {
-  food:          '🍽',
-  transport:     '🚌',
-  entertainment: '🎭',
-  shopping:      '🛍',
-  subscriptions: '📺',
-  health:        '💊',
-  education:     '📚',
-  other:         '💳',
+// ── Category → Tabler icon + colour (NO emoji) ─────────────────────
+const CAT_META: Record<string, { icon: string; color: string }> = {
+  food:          { icon: 'ti-tools-kitchen-2',    color: '#ff9f43' },
+  transport:     { icon: 'ti-car',                color: '#7c5cfc' },
+  entertainment: { icon: 'ti-confetti',           color: '#0ea5e9' },
+  shopping:      { icon: 'ti-shopping-bag',       color: '#f0b429' },
+  subscriptions: { icon: 'ti-device-tv',          color: '#ff4f64' },
+  health:        { icon: 'ti-heart-rate-monitor', color: '#34d399' },
+  education:     { icon: 'ti-school',             color: '#a78bfa' },
+  utilities:     { icon: 'ti-bulb',               color: '#38bdf8' },
+  rent:          { icon: 'ti-home',               color: '#818cf8' },
+  other:         { icon: 'ti-credit-card',        color: '#8b90a4' },
 }
-const getCatIcon = (cat: string) =>
-  CAT_ICONS[cat.toLowerCase()] ?? CAT_ICONS.other
+const getCat = (cat: string) => CAT_META[cat.toLowerCase()] ?? CAT_META.other
 
-// ── Status logic ───────────────────────────────────────
-function getStatus(spent: number, allocated: number) {
-  const pct = allocated > 0 ? (spent / allocated) * 100 : 0
-  if (pct >= 100) return { label: 'Over budget', color: 'var(--red)',    bg: 'rgba(255,79,100,0.12)',    barColor: 'var(--red)'    }
-  if (pct >= 80)  return { label: 'Warning',     color: 'var(--orange)', bg: 'rgba(255,159,67,0.12)',   barColor: 'var(--orange)' }
-  return              { label: 'On track',     color: 'var(--green)',  bg: 'rgba(34,200,122,0.12)',   barColor: 'var(--green)'  }
+// ── Status helper ──────────────────────────────────────────────────
+function getStatus(spent: number, limit: number) {
+  const pct = limit > 0 ? (spent / limit) * 100 : 0
+  if (pct >= 100) return { label: 'Over budget', color: 'var(--red)',    barColor: 'var(--red)',    bg: 'rgba(255,79,100,0.1)'  }
+  if (pct >= 80)  return { label: 'Warning',     color: 'var(--orange)', barColor: 'var(--orange)', bg: 'rgba(255,159,67,0.1)' }
+  return              { label: 'On track',     color: 'var(--green)',  barColor: 'var(--green)',  bg: 'rgba(34,200,122,0.1)' }
 }
 
-// ── Demo data ──────────────────────────────────────────
-const DEMO_CATEGORIES: BudgetCategory[] = [
-  { id:'1', category:'Food',          limit:450,  spent:320, month: 5, year: 2026, alert_threshold: 80 },
-  { id:'2', category:'Transport',     limit:200,  spent:180, month: 5, year: 2026, alert_threshold: 80 },
-  { id:'3', category:'Entertainment', limit:200,  spent:215, month: 5, year: 2026, alert_threshold: 80 },
-  { id:'4', category:'Shopping',      limit:500,  spent:420, month: 5, year: 2026, alert_threshold: 80 },
-  { id:'5', category:'Subscriptions', limit:150,  spent:150, month: 5, year: 2026, alert_threshold: 80 },
+// ── Demo fallback ──────────────────────────────────────────────────
+const DEMO: BudgetCategory[] = [
+  { id: '1', category: 'Food',          limit: 450, spent: 320, month: 5, year: 2026, alert_threshold: 80 },
+  { id: '2', category: 'Transport',     limit: 200, spent: 180, month: 5, year: 2026, alert_threshold: 80 },
+  { id: '3', category: 'Entertainment', limit: 200, spent: 215, month: 5, year: 2026, alert_threshold: 80 },
+  { id: '4', category: 'Shopping',      limit: 500, spent: 420, month: 5, year: 2026, alert_threshold: 80 },
+  { id: '5', category: 'Subscriptions', limit: 150, spent: 150, month: 5, year: 2026, alert_threshold: 80 },
 ]
+const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Subscriptions', 'Health', 'Education', 'Utilities', 'Rent', 'Other']
 
-const CATEGORIES = ['Food','Transport','Shopping','Entertainment','Subscriptions','Health','Education','Other']
+// ── Shimmer block ──────────────────────────────────────────────────
+function Shimmer({ height = 88, radius = 14 }: { height?: number; radius?: number }) {
+  return (
+    <div style={{ height, borderRadius: radius, background: 'var(--bg-card)',
+      border: '1px solid var(--border)', overflow: 'hidden', position: 'relative' }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.04) 50%,transparent 100%)',
+        animation: 'shimmer 1.6s infinite',
+      }} />
+    </div>
+  )
+}
 
-// ══════════════════════════════════════════════════════
+// ── Custom confirm dialog ──────────────────────────────────────────
+function ConfirmDialog({ title, message, onConfirm, onCancel }: {
+  title: string; message: string; onConfirm: () => void; onCancel: () => void
+}) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+      zIndex: 300, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', padding: '0 24px',
+    }} onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+        borderRadius: 20, padding: '24px 20px', width: '100%', maxWidth: 320,
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 14, margin: '0 auto 14px',
+          background: 'rgba(255,79,100,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <i className="ti ti-trash" style={{ fontSize: 22, color: 'var(--red)' }} aria-hidden="true" />
+        </div>
+        <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)',
+          textAlign: 'center', marginBottom: 6 }}>{title}</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center',
+          marginBottom: 20, lineHeight: 1.5 }}>{message}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button onClick={onCancel} style={{
+            height: 44, borderRadius: 12, border: '1px solid var(--border)',
+            background: 'var(--bg-card)', color: 'var(--text-secondary)',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+          }}>Cancel</button>
+          <button onClick={onConfirm} style={{
+            height: 44, borderRadius: 12, border: 'none',
+            background: 'var(--red)', color: '#fff',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+          }}>Remove</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Main Page
+// ══════════════════════════════════════════════════════════════════
 export default function BudgetPage() {
   const { getAccessTokenSilently } = useAuth0()
 
@@ -60,158 +118,172 @@ export default function BudgetPage() {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [editTarget, setEditTarget] = useState<BudgetCategory | null>(null)
+  const [editTarget, setEditTarget]     = useState<BudgetCategory | null>(null)
+  const [confirmId, setConfirmId]       = useState<string | null>(null)
 
   useEffect(() => { fetchBudget() }, [])
 
-  // ── Fetch budget from Flask ────────────────────────
+  async function getToken() {
+    try { return localStorage.getItem('fs_token') || await getAccessTokenSilently() }
+    catch { return localStorage.getItem('fs_token') || '' }
+  }
+
   async function fetchBudget() {
     try {
-      setLoading(true)
-      setError(null)
-      let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
-
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/budgets`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
+      setLoading(true); setError(null)
+      const token = await getToken()
+      const res = await fetch(`${API_URL}/api/budgets`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
       const data = await res.json()
 
       if (data.budgets?.length) {
         setCategories(data.budgets)
-        // Build summary from response or calculate locally
         const totalAllocated = data.budgets.reduce((s: number, b: BudgetCategory) => s + b.limit, 0)
         const totalSpent     = data.budgets.reduce((s: number, b: BudgetCategory) => s + b.spent, 0)
         setSummary({
           total_allocated: totalAllocated,
-          total_spent:     totalSpent,
-          percentage:      totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0,
+          total_spent: totalSpent,
+          percentage: totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0,
         })
       } else {
-        setCategories(DEMO_CATEGORIES)
-        setSummary({ total_allocated:1500, total_spent:1340, percentage:89 })
+        setCategories(DEMO)
+        setSummary({ total_allocated: 1500, total_spent: 1285, percentage: 86 })
       }
     } catch {
-      setCategories(DEMO_CATEGORIES)
-      setSummary({ total_allocated:1500, total_spent:1340, percentage:89 })
+      setCategories(DEMO)
+      setSummary({ total_allocated: 1500, total_spent: 1285, percentage: 86 })
       setError('Using demo data — connect your backend to see real budgets.')
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Delete category ────────────────────────────────
-  async function deleteCategory(id: string) {
-    if (!confirm('Remove this budget category?')) return
+  async function confirmDelete(id: string) {
     try {
-      let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
-      await fetch(`${import.meta.env.VITE_API_URL}/api/budgets/${id}`, {
+      const token = await getToken()
+      await fetch(`${API_URL}/api/budgets/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
       setCategories(prev => prev.filter(c => c.id !== id))
+      // Recalculate summary after delete
+      setCategories(prev => {
+        const updated = prev.filter(c => c.id !== id)
+        const totalAllocated = updated.reduce((s, b) => s + b.limit, 0)
+        const totalSpent     = updated.reduce((s, b) => s + b.spent, 0)
+        setSummary({
+          total_allocated: totalAllocated,
+          total_spent: totalSpent,
+          percentage: totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0,
+        })
+        return updated
+      })
     } catch {
-      alert('Failed to delete.')
+      setError('Failed to delete. Please try again.')
+    } finally {
+      setConfirmId(null)
     }
   }
 
-  // ── Derived ────────────────────────────────────────
-  const overallPct = summary
-    ? Math.min(Math.round((summary.total_spent / summary.total_allocated) * 100), 100)
-    : 0
-
+  // ── Derived ───────────────────────────────────────────────────────
+  const overallPct    = summary ? Math.min(Math.round((summary.total_spent / summary.total_allocated) * 100), 100) : 0
   const overallStatus = summary ? getStatus(summary.total_spent, summary.total_allocated) : null
+  const confirmItem   = categories.find(c => c.id === confirmId)
 
-  // ── Render ─────────────────────────────────────────
   return (
-    <div style={{ paddingBottom: 8 }}>
+    <div style={{ maxWidth: 720, margin: '0 auto', paddingBottom: 32 }}>
+      <style>{`
+        @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+      `}</style>
 
-      {/* ── Error banner ── */}
+      {/* ── Error banner ──────────────────────────────────────── */}
       {error && (
         <div style={{
-          background:'rgba(255,159,67,0.1)', border:'1px solid rgba(255,159,67,0.3)',
-          borderRadius:12, padding:'10px 14px', marginBottom:14,
-          fontSize:12, color:'var(--orange)', display:'flex', gap:8, alignItems:'center',
+          background: 'rgba(255,159,67,0.08)', border: '1px solid rgba(255,159,67,0.25)',
+          borderRadius: 12, padding: '10px 14px', marginBottom: 14,
+          fontSize: 13, color: 'var(--orange)',
+          display: 'flex', gap: 8, alignItems: 'center',
         }}>
-          <i className="ti ti-info-circle" />
+          <i className="ti ti-info-circle" style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true" />
           {error}
         </div>
       )}
 
       {loading ? (
-        <LoadingSkeleton />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Shimmer height={210} radius={18} />
+          {[1, 2, 3, 4].map(i => <Shimmer key={i} height={96} />)}
+        </div>
       ) : (
         <>
-          {/* ── Hero summary card ── */}
+          {/* ── Hero summary card ──────────────────────────────── */}
           {summary && (
             <div style={{
-              background:'var(--bg-card)', border:'1px solid var(--border)',
-              borderRadius:18, padding:20, marginBottom:16,
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 18, padding: 20, marginBottom: 16,
             }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between',
+                alignItems: 'flex-start', marginBottom: 4 }}>
                 <div>
                   <p style={{
-                    fontSize:11, color:'var(--text-muted)',
-                    fontFamily:'var(--font-main)', fontWeight:600,
-                    letterSpacing:'.06em', marginBottom:4,
-                  }}>
-                    TOTAL MONTHLY BUDGET
-                  </p>
-                  <p style={{ fontFamily:'var(--font-main)', fontSize:36, fontWeight:700, lineHeight:1 }}>
+                    fontSize: 10, color: 'var(--text-muted)', fontWeight: 600,
+                    letterSpacing: '.06em', marginBottom: 4,
+                    textTransform: 'uppercase',
+                  }}>Total monthly budget</p>
+                  <p style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)' }}>
                     £{summary.total_allocated.toLocaleString()}
                   </p>
                 </div>
-                <i className="ti ti-shield-check" style={{ fontSize:22, color:'var(--accent)' }} />
+                <div style={{
+                  width: 40, height: 40, borderRadius: 12,
+                  background: 'var(--accent-light)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <i className="ti ti-shield-check"
+                     style={{ fontSize: 20, color: 'var(--accent)' }} aria-hidden="true" />
+                </div>
               </div>
 
               {/* Spent row */}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', margin:'14px 0 6px' }}>
-                <span style={{ fontSize:14, color:'var(--text-secondary)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', margin: '14px 0 6px' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                   £{summary.total_spent.toLocaleString()} spent
                 </span>
-                <span style={{
-                  fontSize:16, fontWeight:700,
-                  fontFamily:'var(--font-main)',
-                  color: overallStatus?.color,
-                }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: overallStatus?.color }}>
                   {overallPct}%
                 </span>
               </div>
 
-              {/* Progress bar */}
+              {/* Overall progress bar */}
               <div style={{
-                background:'rgba(255,255,255,0.06)',
-                borderRadius:99, height:8, overflow:'hidden',
+                background: 'rgba(255,255,255,0.06)',
+                borderRadius: 99, height: 8, overflow: 'hidden',
               }}>
                 <div style={{
-                  width:`${overallPct}%`, height:'100%',
+                  width: `${overallPct}%`, height: '100%',
                   background: overallStatus?.barColor,
-                  borderRadius:99,
-                  transition:'width .6s ease',
+                  borderRadius: 99, transition: 'width .6s ease',
                 }} />
               </div>
 
-              {/* Warning message */}
+              {/* Warning / over budget message */}
               {overallPct >= 80 && (
                 <div style={{
-                  display:'flex', alignItems:'center', gap:6,
-                  marginTop:10, fontSize:12,
-                  color: overallStatus?.color,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  marginTop: 10, fontSize: 12, color: overallStatus?.color,
                 }}>
-                  <i className="ti ti-info-circle" style={{ fontSize:14 }} />
+                  <i className="ti ti-alert-triangle" style={{ fontSize: 14 }} aria-hidden="true" />
                   {overallPct >= 100
-                    ? 'You have exceeded your monthly budget!'
+                    ? 'You have exceeded your monthly budget.'
                     : 'Approaching your monthly limit.'}
                 </div>
               )}
 
               {/* Mini stats */}
-              <div style={{
-                display:'grid', gridTemplateColumns:'1fr 1fr 1fr',
-                gap:10, marginTop:16,
-              }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 16 }}>
                 <MiniStat
                   label="Remaining"
                   value={`£${Math.max(summary.total_allocated - summary.total_spent, 0).toLocaleString()}`}
@@ -225,63 +297,85 @@ export default function BudgetPage() {
                 <MiniStat
                   label="Over limit"
                   value={`${categories.filter(c => c.spent > c.limit).length}`}
-                  color="var(--red)"
+                  color={categories.some(c => c.spent > c.limit) ? 'var(--red)' : 'var(--text-muted)'}
                 />
               </div>
             </div>
           )}
 
-          {/* ── Categories header ── */}
-          <div style={{
-            display:'flex', justifyContent:'space-between',
-            alignItems:'center', marginBottom:12,
-          }}>
-            <p style={{ fontFamily:'var(--font-main)', fontSize:16, fontWeight:700 }}>
+          {/* ── Section header ─────────────────────────────────── */}
+          <div style={{ display: 'flex', justifyContent: 'space-between',
+            alignItems: 'center', marginBottom: 12 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
               Categories
             </p>
-            <span style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:500 }}>
-              View All
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {categories.length} active
             </span>
           </div>
 
-          {/* ── Category list ── */}
-          {categories.map(cat => (
-            <CategoryCard
-                key={cat.id}
-              cat={cat}
-              onEdit={() => setEditTarget(cat)}
-                onDelete={() => deleteCategory(cat.id)}
-            />
-          ))}
+          {/* ── Category list ───────────────────────────────────── */}
+          {categories.length === 0 ? (
+            <div style={{
+              textAlign: 'center', padding: '40px 24px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+            }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 16,
+                background: 'var(--bg-card)', border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <i className="ti ti-wallet-off"
+                   style={{ fontSize: 24, color: 'var(--text-muted)' }} aria-hidden="true" />
+              </div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                No budget categories yet
+              </p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 200, lineHeight: 1.5 }}>
+                Add your first category to start tracking your spending.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {categories.map(cat => (
+                <CategoryCard
+                  key={cat.id}
+                  cat={cat}
+                  onEdit={() => setEditTarget(cat)}
+                  onDelete={() => setConfirmId(cat.id)}
+                />
+              ))}
+            </div>
+          )}
 
-          {/* ── Add category button ── */}
+          {/* ── Add category dashed button ──────────────────────── */}
           <button
             onClick={() => setShowAddModal(true)}
             style={{
-              width:'100%', background:'transparent',
-              border:'1.5px dashed var(--border)',
-              borderRadius:14, padding:16,
-              color:'var(--text-muted)', fontSize:14,
-              fontFamily:'var(--font-main)', fontWeight:500,
-              cursor:'pointer', marginTop:4,
-              transition:'all .2s',
+              width: '100%', background: 'transparent',
+              border: '1.5px dashed var(--border)',
+              borderRadius: 14, height: 52,
+              color: 'var(--text-muted)', fontSize: 14, fontWeight: 500,
+              cursor: 'pointer', marginTop: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'border-color .2s, color .2s',
             }}
             onMouseEnter={e => {
-              (e.target as HTMLElement).style.borderColor = 'var(--accent)'
-              ;(e.target as HTMLElement).style.color = 'var(--accent)'
+              e.currentTarget.style.borderColor = 'var(--accent)'
+              e.currentTarget.style.color = 'var(--accent)'
             }}
             onMouseLeave={e => {
-              (e.target as HTMLElement).style.borderColor = 'var(--border)'
-              ;(e.target as HTMLElement).style.color = 'var(--text-muted)'
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.color = 'var(--text-muted)'
             }}
           >
-            <i className="ti ti-plus" style={{ marginRight:8 }} />
-            Add Budget Category
+            <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true" />
+            Add budget category
           </button>
         </>
       )}
 
-      {/* ── Modals ── */}
+      {/* ── Modals ────────────────────────────────────────────── */}
       {showAddModal && (
         <BudgetModal
           mode="add"
@@ -297,177 +391,182 @@ export default function BudgetPage() {
           onSaved={() => { setEditTarget(null); fetchBudget() }}
         />
       )}
+
+      {/* ── Custom confirm dialog ─────────────────────────────── */}
+      {confirmId && confirmItem && (
+        <ConfirmDialog
+          title="Remove budget category?"
+          message={`"${confirmItem.category}" (£${confirmItem.limit.toLocaleString()} limit) will be permanently removed.`}
+          onConfirm={() => confirmDelete(confirmId)}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </div>
   )
 }
 
-// ══════════════════════════════════════════════════════
-// Sub-components
-// ══════════════════════════════════════════════════════
-
+// ── Mini stat ──────────────────────────────────────────────────────
 function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div style={{
-      background:'var(--bg-card2)', borderRadius:10,
-      padding:'10px 12px', textAlign:'center',
+      background: 'var(--bg-card2)', borderRadius: 10,
+      padding: '10px 12px', textAlign: 'center',
     }}>
-      <p style={{ fontSize:16, fontWeight:700, fontFamily:'var(--font-main)', color }}>
-        {value}
-      </p>
-      <p style={{ fontSize:10, color:'var(--text-muted)', marginTop:2, fontFamily:'var(--font-main)', fontWeight:500 }}>
-        {label.toUpperCase()}
-      </p>
+      <p style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1 }}>{value}</p>
+      <p style={{
+        fontSize: 10, color: 'var(--text-muted)', marginTop: 4,
+        fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em',
+      }}>{label}</p>
     </div>
   )
 }
 
+// ── Category card ──────────────────────────────────────────────────
 function CategoryCard({ cat, onEdit, onDelete }: {
-  cat: BudgetCategory
-  onEdit: () => void
-  onDelete: () => void
+  cat: BudgetCategory; onEdit: () => void; onDelete: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   const status = getStatus(cat.spent, cat.limit)
-  const pct    = cat.limit > 0
-    ? Math.min(Math.round((cat.spent / cat.limit) * 100), 100)
-    : 0
+  const pct    = cat.limit > 0 ? Math.min(Math.round((cat.spent / cat.limit) * 100), 100) : 0
+  const { icon, color } = getCat(cat.category)
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background:'var(--bg-card)', border:'1px solid var(--border)',
-        borderRadius:14, padding:14, marginBottom:10,
-        borderColor: hovered ? 'var(--accent)' : 'var(--border)',
-        transition:'all .2s',
+        background: 'var(--bg-card)',
+        border: `1px solid ${hovered ? 'var(--accent)' : 'var(--border)'}`,
+        borderRadius: 14, padding: 14,
+        transition: 'border-color .2s',
       }}
     >
       {/* Top row */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          {/* Icon */}
+      <div style={{ display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* ✅ Vector icon badge */}
           <div style={{
-            width:40, height:40, borderRadius:12,
-            background:'var(--bg-card2)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:18,
+            width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+            background: `${color}18`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {getCatIcon(cat.category)}
+            <i className={`ti ${icon}`} style={{ fontSize: 18, color }} aria-hidden="true" />
           </div>
           <div>
-            <p style={{ fontSize:14, fontWeight:600, fontFamily:'var(--font-main)' }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
               {cat.category}
             </p>
-            <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
               £{cat.spent.toLocaleString()} of £{cat.limit.toLocaleString()}
             </p>
           </div>
         </div>
 
-        {/* Right side — status badge or action buttons */}
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          {hovered ? (
-            <>
-              <ActionBtn icon="ti-edit"  color="var(--accent)" onClick={onEdit}   />
-              <ActionBtn icon="ti-trash" color="var(--red)"    onClick={onDelete} />
-            </>
-          ) : (
+        {/* Right — actions always visible, styled subtly */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Status badge — hides on hover to make room */}
+          {!hovered && (
             <span style={{
-              padding:'4px 10px', borderRadius:99,
-              fontSize:11, fontWeight:600, fontFamily:'var(--font-main)',
+              padding: '3px 9px', borderRadius: 99,
+              fontSize: 11, fontWeight: 600,
               background: status.bg, color: status.color,
             }}>
               {status.label}
             </span>
           )}
+          {/* ✅ Action buttons — always rendered, opacity controlled */}
+          <button
+            onClick={onEdit}
+            aria-label={`Edit ${cat.category} budget`}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none',
+              background: hovered ? 'var(--accent-light)' : 'transparent',
+              color: hovered ? 'var(--accent)' : 'var(--text-muted)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', transition: 'all .2s',
+              opacity: hovered ? 1 : 0.4,
+            }}
+          >
+            <i className="ti ti-edit" style={{ fontSize: 15 }} />
+          </button>
+          <button
+            onClick={onDelete}
+            aria-label={`Delete ${cat.category} budget`}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none',
+              background: hovered ? 'rgba(255,79,100,0.1)' : 'transparent',
+              color: hovered ? 'var(--red)' : 'var(--text-muted)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', transition: 'all .2s',
+              opacity: hovered ? 1 : 0.4,
+            }}
+          >
+            <i className="ti ti-trash" style={{ fontSize: 15 }} />
+          </button>
         </div>
       </div>
 
       {/* Progress bar */}
       <div style={{
-        background:'rgba(255,255,255,0.06)',
-        borderRadius:99, height:6, overflow:'hidden',
+        background: 'rgba(255,255,255,0.06)',
+        borderRadius: 99, height: 6, overflow: 'hidden',
       }}>
         <div style={{
-          width:`${pct}%`, height:'100%',
-          background: status.barColor,
-          borderRadius:99,
-          transition:'width .5s ease',
+          width: `${pct}%`, height: '100%',
+          background: status.barColor, borderRadius: 99,
+          transition: 'width .5s ease',
         }} />
       </div>
 
-      {/* Remaining */}
-      <p style={{
-        fontSize:11, color:'var(--text-muted)',
-        marginTop:6, textAlign:'right',
-      }}>
-        {cat.spent > cat.limit
-          ? `£${(cat.spent - cat.limit).toFixed(0)} over`
-          : `£${(cat.limit - cat.spent).toFixed(0)} remaining`
-        }
-      </p>
+      {/* Bottom label */}
+      <div style={{ display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginTop: 6 }}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          {pct}% used
+        </span>
+        <span style={{ fontSize: 11, color: cat.spent > cat.limit ? 'var(--red)' : 'var(--text-muted)' }}>
+          {cat.spent > cat.limit
+            ? `£${(cat.spent - cat.limit).toFixed(0)} over`
+            : `£${(cat.limit - cat.spent).toFixed(0)} remaining`}
+        </span>
+      </div>
     </div>
   )
 }
 
-function ActionBtn({ icon, color, onClick }: { icon: string; color: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} style={{
-      width:32, height:32, borderRadius:8,
-      background: color === 'var(--red)' ? 'rgba(255,79,100,0.1)' : 'var(--accent-light)',
-      border:'none', cursor:'pointer',
-      display:'flex', alignItems:'center', justifyContent:'center',
-      color, fontSize:15,
-    }}>
-      <i className={`ti ${icon}`} />
-    </button>
-  )
-}
-
-// ── Add / Edit Modal ───────────────────────────────────
+// ── Budget modal (add / edit) ──────────────────────────────────────
 function BudgetModal({ mode, existing, onClose, onSaved }: {
-  mode: 'add' | 'edit'
-  existing?: BudgetCategory
-  onClose: () => void
-  onSaved: () => void
+  mode: 'add' | 'edit'; existing?: BudgetCategory
+  onClose: () => void; onSaved: () => void
 }) {
   const { getAccessTokenSilently } = useAuth0()
-
-  const [form, setForm] = useState({
-    category:  existing?.category  ?? 'Food',
-    limit: existing?.limit?.toString() ?? '',
+  const [form, setForm]       = useState({
+    category: existing?.category ?? 'Food',
+    limit:    existing?.limit?.toString() ?? '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr]               = useState('')
 
   const update = (k: keyof typeof form, v: string) =>
-    setForm(prev => ({ ...prev, [k]: v }))
+    setForm(p => ({ ...p, [k]: v }))
 
   async function handleSubmit() {
-    if (!form.limit || isNaN(Number(form.limit))) return setErr('Enter a valid amount')
-    setErr('')
-    setSubmitting(true)
-
+    if (!form.limit || isNaN(Number(form.limit))) return setErr('Enter a valid amount.')
+    if (Number(form.limit) <= 0)                  return setErr('Limit must be greater than zero.')
+    setErr(''); setSubmitting(true)
     try {
-      let token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const token  = localStorage.getItem('fs_token') || await getAccessTokenSilently()
       const url    = mode === 'edit' && existing
-        ? `${import.meta.env.VITE_API_URL}/api/budgets/${existing.id}`
-        : `${import.meta.env.VITE_API_URL}/api/budgets`
+        ? `${API_URL}/api/budgets/${existing.id}`
+        : `${API_URL}/api/budgets`
       const method = mode === 'edit' ? 'PUT' : 'POST'
-
       const res = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          category:  form.category,
-          limit: parseFloat(form.limit),
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ category: form.category, limit: parseFloat(form.limit) }),
       })
-      if (!res.ok) throw new Error('Failed to save')
+      if (!res.ok) throw new Error()
       onSaved()
     } catch {
       setErr('Could not save. Please try again.')
@@ -477,117 +576,131 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position:'fixed', inset:0, background:'rgba(0,0,0,0.6)',
-        zIndex:200, display:'flex', alignItems:'flex-end',
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          width:'100%', maxWidth:430, margin:'0 auto',
-          background:'var(--bg-secondary)',
-          borderRadius:'24px 24px 0 0',
-          padding:'24px 20px 36px',
-          border:'1px solid var(--border)',
-        }}
-      >
-        {/* Handle */}
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+      zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 520,
+        background: 'var(--bg-secondary)',
+        borderRadius: '24px 24px 0 0',
+        padding: '20px 20px',
+        paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
+        border: '1px solid var(--border)',
+      }}>
+        {/* Drag handle */}
         <div style={{
-          width:40, height:4, background:'var(--border)',
-          borderRadius:99, margin:'0 auto 20px',
+          width: 36, height: 4, background: 'rgba(255,255,255,0.15)',
+          borderRadius: 99, margin: '0 auto 18px',
         }} />
 
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <h2 style={{ fontFamily:'var(--font-main)', fontSize:18, fontWeight:700 }}>
-            {mode === 'edit' ? 'Edit Budget' : 'Add Budget Category'}
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: 18 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {mode === 'edit' ? 'Edit budget' : 'Add budget category'}
           </h2>
-          <button onClick={onClose} style={{ background:'none', border:'none',
-            cursor:'pointer', color:'var(--text-muted)', fontSize:20 }}>
-            <i className="ti ti-x" />
+          <button onClick={onClose} aria-label="Close modal" style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            color: 'var(--text-muted)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <i className="ti ti-x" style={{ fontSize: 16 }} />
           </button>
         </div>
 
-        {/* Category select */}
-        <div style={{ marginBottom:14 }}>
-          <label style={{
-            fontSize:12, fontWeight:600, color:'var(--text-secondary)',
-            fontFamily:'var(--font-main)', letterSpacing:'.04em',
-            display:'block', marginBottom:8,
-          }}>
-            CATEGORY
-          </label>
+        {/* Category */}
+        <div style={{ marginBottom: 14 }}>
+          <label htmlFor="budget-category" style={{
+            fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+            letterSpacing: '.04em', display: 'block', marginBottom: 6,
+            textTransform: 'uppercase',
+          }}>Category</label>
           <select
+            id="budget-category"
             value={form.category}
             onChange={e => update('category', e.target.value)}
+            disabled={mode === 'edit'}
             style={{
-              width:'100%', background:'var(--bg-card)',
-              border:'1px solid var(--border)', borderRadius:14,
-              padding:'13px 16px', fontSize:14,
-              color:'var(--text-primary)', fontFamily:'var(--font-body)',
-              outline:'none', appearance:'none',
+              width: '100%', boxSizing: 'border-box',
+              background: mode === 'edit' ? 'var(--bg-card2)' : 'var(--bg-card)',
+              border: '1px solid var(--border)', borderRadius: 12,
+              padding: '12px 14px', fontSize: 14, height: 48,
+              color: 'var(--text-primary)', outline: 'none', appearance: 'none',
+              opacity: mode === 'edit' ? 0.6 : 1,
             }}
           >
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          {mode === 'edit' && (
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+              Category cannot be changed when editing.
+            </p>
+          )}
         </div>
 
         {/* Monthly limit */}
-        <div style={{ marginBottom:14 }}>
-          <label style={{
-            fontSize:12, fontWeight:600, color:'var(--text-secondary)',
-            fontFamily:'var(--font-main)', letterSpacing:'.04em',
-            display:'block', marginBottom:8,
-          }}>
-            MONTHLY LIMIT (£)
-          </label>
+        <div style={{ marginBottom: 14 }}>
+          <label htmlFor="budget-limit" style={{
+            fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+            letterSpacing: '.04em', display: 'block', marginBottom: 6,
+            textTransform: 'uppercase',
+          }}>Monthly limit (£)</label>
           <input
+            id="budget-limit"
             type="number"
+            min="1"
+            step="1"
             value={form.limit}
             onChange={e => update('limit', e.target.value)}
             placeholder="e.g. 300"
             style={{
-              width:'100%', background:'var(--bg-card)',
-              border:'1px solid var(--border)', borderRadius:14,
-              padding:'13px 16px', fontSize:14,
-              color:'var(--text-primary)', fontFamily:'var(--font-body)',
-              outline:'none',
+              width: '100%', boxSizing: 'border-box',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 12, padding: '12px 14px', fontSize: 14, height: 48,
+              color: 'var(--text-primary)', outline: 'none',
             }}
           />
         </div>
 
+        {/* Error */}
         {err && (
-          <p style={{ fontSize:13, color:'var(--red)', marginBottom:12, textAlign:'center' }}>
-            {err}
-          </p>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '10px 14px', borderRadius: 10, marginBottom: 12,
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+          }}>
+            <i className="ti ti-alert-circle"
+               style={{ fontSize: 15, color: 'var(--red)', flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: 'var(--red)' }}>{err}</p>
+          </div>
         )}
 
+        {/* Submit */}
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="btn-accent"
-          style={{ opacity: submitting ? .6 : 1, marginTop:4 }}
+          style={{
+            width: '100%', height: 52, borderRadius: 14, border: 'none',
+            background: submitting ? 'rgba(124,58,237,0.6)' : 'var(--accent)',
+            color: '#ede0ff', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            opacity: submitting ? 0.7 : 1, transition: 'background .2s',
+          }}
         >
-          {submitting ? 'Saving...' : mode === 'edit' ? 'Update Budget' : 'Add Category'}
+          {submitting ? (
+            <>
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                <path d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
+              Saving...
+            </>
+          ) : mode === 'edit' ? 'Update budget' : 'Add category'}
         </button>
       </div>
-    </div>
-  )
-}
-
-// ── Loading skeleton ───────────────────────────────────
-function LoadingSkeleton() {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-      <div style={{ height:200, borderRadius:18, background:'var(--bg-card)',
-        border:'1px solid var(--border)', animation:'pulse 1.5s ease-in-out infinite' }} />
-      {[1,2,3,4].map(i => (
-        <div key={i} style={{ height:88, borderRadius:14, background:'var(--bg-card)',
-          border:'1px solid var(--border)', animation:'pulse 1.5s ease-in-out infinite' }} />
-      ))}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
     </div>
   )
 }
