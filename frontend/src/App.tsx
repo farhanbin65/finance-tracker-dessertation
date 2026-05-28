@@ -13,6 +13,9 @@ import ProfilePage     from './pages/ProfilePage'
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth0()
 
+  // ✅ Check BOTH Auth0 session AND local JWT token
+  const hasJwtToken = !!localStorage.getItem('fs_token')
+
   if (isLoading) return (
     <div style={{
       display:'flex', alignItems:'center', justifyContent:'center',
@@ -28,7 +31,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     </div>
   )
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />
+  // Allow access if Auth0 authenticated OR has JWT token
+  if (!isAuthenticated && !hasJwtToken) return <Navigate to="/login" replace />
   return <>{children}</>
 }
 
