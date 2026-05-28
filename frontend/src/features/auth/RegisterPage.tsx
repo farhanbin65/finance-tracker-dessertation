@@ -4,10 +4,28 @@
  * password strength, focus states, autocomplete, accessibility
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth >= 1024
+  })
+
+  useEffect(() => {
+    const updateIsDesktop = () => setIsDesktop(window.innerWidth >= 1024)
+
+    updateIsDesktop()
+    window.addEventListener('resize', updateIsDesktop)
+
+    return () => window.removeEventListener('resize', updateIsDesktop)
+  }, [])
+
+  return isDesktop
+}
 
 // ── Password strength helper ──────────────────────────────────────
 function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
@@ -26,6 +44,7 @@ function getPasswordStrength(pw: string): { score: number; label: string; color:
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -120,9 +139,10 @@ export default function RegisterPage() {
       className="min-h-screen flex overflow-x-hidden"
       style={{ backgroundColor: '#0F1629', color: '#e8dfee', fontFamily: 'Inter, sans-serif' }}
     >
-      {/* ─── Left brand panel — lg+ only ───────────────────────────── */}
+      {/* ─── Left brand panel — desktop only ───────────────────────── */}
+      {isDesktop && (
       <div
-        className="hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col justify-between p-12 relative overflow-hidden"
+        className="flex w-1/2 xl:w-[55%] flex-col justify-between p-12 relative overflow-hidden"
         style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
       >
         {/* Glows */}
@@ -189,12 +209,14 @@ export default function RegisterPage() {
           </p>
         </div>
       </div>
+      )}
 
       {/* ─── Right form panel ───────────────────────────────────────── */}
-      <div className="w-full lg:w-1/2 xl:w-[45%] flex flex-col min-h-screen">
+      <div className={isDesktop ? 'w-1/2 xl:w-[45%] flex flex-col min-h-screen' : 'w-full flex flex-col min-h-screen'}>
 
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center justify-between px-5 h-16 flex-shrink-0">
+        {!isDesktop && (
+        <header className="flex items-center justify-between px-5 h-16 flex-shrink-0">
           <button
             onClick={() => navigate('/login')}
             className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
@@ -210,6 +232,7 @@ export default function RegisterPage() {
           </div>
           <div style={{ width: 36 }} aria-hidden="true" />
         </header>
+        )}
 
         {/* Scrollable form area */}
         <div className="flex-grow flex flex-col justify-center px-5 sm:px-8 lg:px-12 xl:px-16 py-8">

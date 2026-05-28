@@ -1,30 +1,39 @@
 /**
- * FinSight — LoginPage.tsx
- * UI UX Pro Max: Responsive split layout (mobile-first → lg: two-panel)
- * Fixes: localStorage keys, focus states, accessibility, autocomplete, responsive
+ * FinSight — LoginPage.tsx (Layout Fixed)
+ * No Tailwind responsive classes — pure inline styles + useIsDesktop hook
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
+// ── Responsive hook ────────────────────────────────────────────────
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024)
+  useEffect(() => {
+    const handler = () => setIsDesktop(window.innerWidth >= 1024)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isDesktop
+}
+
 export default function LoginPage() {
-  const navigate = useNavigate()
+  const navigate    = useNavigate()
   const { loginWithRedirect } = useAuth0()
+  const isDesktop   = useIsDesktop()
 
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [email, setEmail]               = useState('')
+  const [password, setPassword]         = useState('')
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState('')
 
-  // ✅ Keys aligned to handover doc
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
@@ -32,15 +41,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Login failed. Please check your credentials.')
-        return
-      }
-      localStorage.setItem('fs_token', data.access_token)
+      if (!res.ok) { setError(data.error || 'Login failed.'); return }
+      localStorage.setItem('fs_token',         data.access_token)
       localStorage.setItem('fs_refresh_token', data.refresh_token)
-      localStorage.setItem('fs_user', JSON.stringify(data.user))
-      localStorage.setItem('fs_name', data.user?.full_name || '')
-      localStorage.setItem('fs_email', data.user?.email || '')
+      localStorage.setItem('fs_user',          JSON.stringify(data.user))
+      localStorage.setItem('fs_name',          data.user?.full_name || '')
+      localStorage.setItem('fs_email',         data.user?.email || '')
       navigate('/dashboard')
     } catch {
       setError('Network error. Please try again.')
@@ -49,215 +55,215 @@ export default function LoginPage() {
     }
   }
 
-  const handleGoogleLogin = () =>
-    loginWithRedirect({ authorizationParams: { connection: 'google-oauth2' } })
-
-  const handleGithubLogin = () =>
-    loginWithRedirect({ authorizationParams: { connection: 'github' } })
+  const handleGoogleLogin = () => loginWithRedirect({ authorizationParams: { connection: 'google-oauth2' } })
+  const handleGithubLogin = () => loginWithRedirect({ authorizationParams: { connection: 'github' } })
 
   return (
-    <div
-      className="min-h-screen flex overflow-x-hidden"
-      style={{ backgroundColor: '#0F1629', color: '#e8dfee', fontFamily: 'Inter, sans-serif' }}
-    >
-      {/* ─── Left brand panel — hidden on mobile, visible lg+ ─── */}
-      <div
-        className="hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col justify-between p-12 relative overflow-hidden"
-        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
-      >
-        {/* Decorative glow — top right */}
-        <div
-          className="absolute top-[-15%] right-[-10%] w-[70%] h-[70%] rounded-full pointer-events-none"
-          style={{ background: 'rgba(124,58,237,0.12)', filter: 'blur(100px)' }}
-          aria-hidden="true"
-        />
-        {/* Decorative glow — bottom left */}
-        <div
-          className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] rounded-full pointer-events-none"
-          style={{ background: 'rgba(63,70,92,0.15)', filter: 'blur(80px)' }}
-          aria-hidden="true"
-        />
+    // ── Root: flex ROW — this is what was broken ──────────────────
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'row',       // ← KEY: side by side
+      overflow: 'hidden',
+      backgroundColor: '#0F1629',
+      color: '#e8dfee',
+      fontFamily: 'Inter, sans-serif',
+    }}>
 
-        {/* Logo */}
-        <div className="relative z-10 flex items-center gap-2.5">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)' }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ color: '#a78bfa', fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
-              aria-hidden="true"
-            >
-              shield_lock
-            </span>
-          </div>
-          <span className="text-xl font-bold" style={{ color: '#e8dfee' }}>FinSight</span>
-        </div>
+      {/* ── LEFT BRAND PANEL — desktop only ──────────────────────── */}
+      {isDesktop && (
+        <div style={{
+          width: '55%',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '48px',
+          position: 'relative',
+          overflow: 'hidden',
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {/* Glow top-right */}
+          <div style={{
+            position: 'absolute', top: '-15%', right: '-10%',
+            width: '70%', height: '70%', borderRadius: '50%',
+            background: 'rgba(124,58,237,0.12)', filter: 'blur(100px)',
+            pointerEvents: 'none',
+          }} aria-hidden="true" />
+          {/* Glow bottom-left */}
+          <div style={{
+            position: 'absolute', bottom: '-10%', left: '-5%',
+            width: '50%', height: '50%', borderRadius: '50%',
+            background: 'rgba(63,70,92,0.15)', filter: 'blur(80px)',
+            pointerEvents: 'none',
+          }} aria-hidden="true" />
 
-        {/* Brand copy — centre of panel */}
-        <div className="relative z-10 flex-grow flex flex-col justify-center max-w-sm">
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 w-fit text-xs font-medium"
-            style={{
-              background: 'rgba(124,58,237,0.15)',
-              border: '1px solid rgba(124,58,237,0.25)',
-              color: '#c4b5fd',
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}
-              aria-hidden="true"
-            >
-              verified
-            </span>
-            Bank-grade security
+          {/* Logo */}
+          <div style={{ position: 'relative', zIndex: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 12,
+              background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span className="material-symbols-outlined"
+                    style={{ color: '#a78bfa', fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
+                    aria-hidden="true">shield_lock</span>
+            </div>
+            <span style={{ fontSize: 20, fontWeight: 700, color: '#e8dfee' }}>FinSight</span>
           </div>
 
-          <h1
-            className="font-bold mb-4 leading-tight"
-            style={{ fontSize: 'clamp(32px, 3vw, 44px)', letterSpacing: '-0.02em', color: '#f1eeff' }}
-          >
-            Your money,<br />
-            <span style={{ color: '#a78bfa' }}>intelligently</span><br />
-            managed.
-          </h1>
+          {/* Brand copy — vertically centred */}
+          <div style={{ position: 'relative', zIndex: 10, maxWidth: 380 }}>
+            {/* Badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '6px 14px', borderRadius: 99, marginBottom: 28,
+              background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.25)',
+              fontSize: 12, fontWeight: 500, color: '#c4b5fd',
+            }}>
+              <span className="material-symbols-outlined"
+                    style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}
+                    aria-hidden="true">verified</span>
+              Bank-grade security
+            </div>
 
-          <p style={{ fontSize: '16px', lineHeight: '1.7', color: '#94A3B8', maxWidth: '340px' }}>
-            FinSight gives you AI-powered insights, real-time budget tracking, and complete
-            financial clarity — all in one private, secure platform.
-          </p>
+            <h1 style={{
+              fontSize: 'clamp(32px, 3vw, 46px)',
+              fontWeight: 700, lineHeight: 1.15,
+              letterSpacing: '-0.02em', color: '#f1eeff', marginBottom: 16,
+            }}>
+              Your money,<br />
+              <span style={{ color: '#a78bfa' }}>intelligently</span><br />
+              managed.
+            </h1>
 
-          {/* Trust signals */}
-          <div className="flex flex-col gap-3 mt-8">
-            {[
-              { icon: 'lock', text: 'AES-256 encrypted at rest' },
-              { icon: 'visibility_off', text: 'Zero data sharing, ever' },
-              { icon: 'psychology', text: 'AI insights powered by Llama 3' },
-            ].map(({ icon, text }) => (
-              <div key={text} className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.2)' }}
-                >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ color: '#a78bfa', fontSize: '16px' }}
-                    aria-hidden="true"
-                  >
-                    {icon}
-                  </span>
+            <p style={{ fontSize: 16, lineHeight: 1.7, color: '#94A3B8', maxWidth: 340 }}>
+              FinSight gives you AI-powered insights, real-time budget
+              tracking, and complete financial clarity — all in one
+              private, secure platform.
+            </p>
+
+            {/* Trust signals */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 36 }}>
+              {[
+                { icon: 'lock',           text: 'AES-256 encrypted at rest'      },
+                { icon: 'visibility_off', text: 'Zero data sharing, ever'         },
+                { icon: 'psychology',     text: 'AI insights powered by Llama 3' },
+              ].map(({ icon, text }) => (
+                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                    background: 'rgba(124,58,237,0.12)',
+                    border: '1px solid rgba(124,58,237,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span className="material-symbols-outlined"
+                          style={{ color: '#a78bfa', fontSize: '16px' }}
+                          aria-hidden="true">{icon}</span>
+                  </div>
+                  <span style={{ fontSize: 14, color: '#94A3B8' }}>{text}</span>
                 </div>
-                <span style={{ fontSize: '14px', color: '#94A3B8' }}>{text}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Bottom footnote */}
-        <div className="relative z-10">
-          <p style={{ fontSize: '12px', color: '#475569' }}>
+          {/* Footer */}
+          <p style={{ position: 'relative', zIndex: 10, fontSize: 12, color: '#475569' }}>
             © 2025 FinSight · Dissertation Project · BSc Computing Systems
           </p>
         </div>
-      </div>
+      )}
 
-      {/* ─── Right form panel ─── */}
-      <div className="w-full lg:w-1/2 xl:w-[45%] flex flex-col min-h-screen">
+      {/* ── RIGHT FORM PANEL ─────────────────────────────────────── */}
+      <div style={{
+        flex: 1,                  // ← takes remaining space
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        minWidth: 0,
+      }}>
 
-        {/* Mobile-only header */}
-        <header className="lg:hidden flex items-center justify-between px-5 h-16 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)' }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ color: '#a78bfa', fontSize: '18px', fontVariationSettings: "'FILL' 1" }}
-                aria-hidden="true"
-              >
-                shield_lock
-              </span>
+        {/* Mobile header — only on small screens */}
+        {!isDesktop && (
+          <header style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 20px', height: 64, flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 10,
+                background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span className="material-symbols-outlined"
+                      style={{ color: '#a78bfa', fontSize: '18px', fontVariationSettings: "'FILL' 1" }}
+                      aria-hidden="true">shield_lock</span>
+              </div>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#e8dfee' }}>FinSight</span>
             </div>
-            <span className="text-lg font-bold" style={{ color: '#e8dfee' }}>FinSight</span>
-          </div>
-        </header>
+          </header>
+        )}
 
-        {/* Form scroll area */}
-        <div className="flex-grow flex flex-col justify-center px-5 sm:px-8 lg:px-12 xl:px-16 py-8">
-          <div className="w-full max-w-sm mx-auto lg:mx-0">
+        {/* Scrollable form area */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: isDesktop ? '48px 64px' : '32px 20px',
+          overflowY: 'auto',
+        }}>
+          <div style={{ width: '100%', maxWidth: 400 }}>
 
             {/* Heading */}
-            <div className="mb-8">
-              <h2
-                className="font-bold mb-1.5"
-                style={{ fontSize: '28px', letterSpacing: '-0.02em', color: '#f1eeff' }}
-              >
-                Welcome back
-              </h2>
-              <p style={{ fontSize: '15px', color: '#94A3B8' }}>
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{
+                fontSize: 28, fontWeight: 700,
+                letterSpacing: '-0.02em', color: '#f1eeff', marginBottom: 6,
+              }}>Welcome back</h2>
+              <p style={{ fontSize: 15, color: '#94A3B8' }}>
                 Sign in to your FinSight account
               </p>
             </div>
 
             {/* Error banner */}
             {error && (
-              <div
-                className="mb-5 p-3.5 rounded-xl text-sm flex items-start gap-2.5"
-                role="alert"
-                style={{
-                  background: 'rgba(239,68,68,0.08)',
-                  border: '1px solid rgba(239,68,68,0.2)',
-                  color: '#FCA5A5',
-                }}
-              >
-                <span
-                  className="material-symbols-outlined flex-shrink-0"
-                  style={{ fontSize: '18px', color: '#EF4444', marginTop: '1px' }}
-                  aria-hidden="true"
-                >
-                  error
-                </span>
+              <div style={{
+                marginBottom: 20, padding: '12px 14px', borderRadius: 12,
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                color: '#FCA5A5', fontSize: 14,
+                display: 'flex', alignItems: 'center', gap: 8,
+              }} role="alert">
+                <span className="material-symbols-outlined"
+                      style={{ fontSize: '18px', color: '#EF4444', flexShrink: 0 }}
+                      aria-hidden="true">error</span>
                 {error}
               </div>
             )}
 
             {/* Form */}
-            <form onSubmit={handleLogin} className="flex flex-col gap-4" noValidate>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }} noValidate>
 
-              {/* Email field */}
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="email"
-                  style={{ fontSize: '14px', color: '#CBD5E1', fontWeight: 500 }}
-                >
+              {/* Email */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label htmlFor="email" style={{ fontSize: 14, color: '#CBD5E1', fontWeight: 500 }}>
                   Email address
                 </label>
-                <div className="relative">
-                  <span
-                    className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{ color: '#475569', fontSize: '18px' }}
-                    aria-hidden="true"
-                  >
-                    mail
-                  </span>
+                <div style={{ position: 'relative' }}>
+                  <span className="material-symbols-outlined" style={{
+                    position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                    color: '#475569', fontSize: '18px', pointerEvents: 'none',
+                  }} aria-hidden="true">mail</span>
                   <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
+                    id="email" type="email" autoComplete="email"
                     placeholder="name@email.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-11 pr-4 rounded-xl text-base transition-all duration-200"
+                    value={email} onChange={e => setEmail(e.target.value)} required
                     style={{
-                      height: '52px',          // ✅ exceeds 44px touch target
+                      width: '100%', boxSizing: 'border-box',
+                      height: 52, paddingLeft: 44, paddingRight: 16,
                       background: 'rgba(16,13,22,0.8)',
-                      border: '1px solid #2D2A35',
-                      color: '#e8dfee',
-                      outline: 'none',
+                      border: '1px solid #2D2A35', borderRadius: 12,
+                      color: '#e8dfee', fontSize: 16, outline: 'none',
                     }}
                     onFocus={e => {
                       e.currentTarget.style.border = '1px solid rgba(124,58,237,0.6)'
@@ -271,46 +277,29 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Password field */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="password"
-                    style={{ fontSize: '14px', color: '#CBD5E1', fontWeight: 500 }}
-                  >
+              {/* Password */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="password" style={{ fontSize: 14, color: '#CBD5E1', fontWeight: 500 }}>
                     Password
                   </label>
-                  <a
-                    href="#"
-                    style={{ fontSize: '13px', color: '#7c3aed' }}
-                    className="hover:underline"
-                  >
-                    Forgot password?
-                  </a>
+                  <a href="#" style={{ fontSize: 13, color: '#7c3aed' }}>Forgot password?</a>
                 </div>
-                <div className="relative">
-                  <span
-                    className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{ color: '#475569', fontSize: '18px' }}
-                    aria-hidden="true"
-                  >
-                    lock
-                  </span>
+                <div style={{ position: 'relative' }}>
+                  <span className="material-symbols-outlined" style={{
+                    position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                    color: '#475569', fontSize: '18px', pointerEvents: 'none',
+                  }} aria-hidden="true">lock</span>
                   <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    className="w-full pl-11 pr-12 rounded-xl text-base transition-all duration-200"
+                    id="password" type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password" placeholder="••••••••"
+                    value={password} onChange={e => setPassword(e.target.value)} required
                     style={{
-                      height: '52px',
+                      width: '100%', boxSizing: 'border-box',
+                      height: 52, paddingLeft: 44, paddingRight: 48,
                       background: 'rgba(16,13,22,0.8)',
-                      border: '1px solid #2D2A35',
-                      color: '#e8dfee',
-                      outline: 'none',
+                      border: '1px solid #2D2A35', borderRadius: 12,
+                      color: '#e8dfee', fontSize: 16, outline: 'none',
                     }}
                     onFocus={e => {
                       e.currentTarget.style.border = '1px solid rgba(124,58,237,0.6)'
@@ -321,13 +310,13 @@ export default function LoginPage() {
                       e.currentTarget.style.boxShadow = 'none'
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2"
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    style={{ color: '#475569', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
-                  >
+                    style={{
+                      position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                      color: '#475569',
+                    }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
                       {showPassword ? 'visibility' : 'visibility_off'}
                     </span>
@@ -335,62 +324,48 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-xl font-semibold text-sm mt-1 transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                style={{
-                  height: '52px',
-                  background: loading ? 'rgba(124,58,237,0.6)' : '#7c3aed',
-                  color: '#ede0ff',
-                }}
-              >
+              {/* Submit */}
+              <button type="submit" disabled={loading} style={{
+                height: 52, borderRadius: 12, border: 'none',
+                background: loading ? 'rgba(124,58,237,0.6)' : '#7c3aed',
+                color: '#ede0ff', fontSize: 15, fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                marginTop: 4, transition: 'background .2s',
+                opacity: loading ? 0.7 : 1,
+              }}>
                 {loading ? (
                   <>
-                    <svg
-                      className="animate-spin"
-                      width="16" height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      aria-hidden="true"
-                    >
+                    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                       <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
                       <path d="M12 2a10 10 0 0 1 10 10" />
                     </svg>
                     Signing in...
                   </>
-                ) : (
-                  'Sign in'
-                )}
+                ) : 'Sign in'}
               </button>
             </form>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="h-px flex-grow" style={{ background: '#1E1B2E' }} />
-              <span style={{ fontSize: '12px', color: '#475569' }}>or continue with</span>
-              <div className="h-px flex-grow" style={{ background: '#1E1B2E' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0' }}>
+              <div style={{ flex: 1, height: 1, background: '#1E1B2E' }} />
+              <span style={{ fontSize: 12, color: '#475569' }}>or continue with</span>
+              <div style={{ flex: 1, height: 1, background: '#1E1B2E' }} />
             </div>
 
             {/* Social buttons */}
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 rounded-xl font-medium text-sm transition-all duration-200 active:scale-[0.98]"
-                style={{
-                  height: '52px',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#CBD5E1',
-                }}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button type="button" onClick={handleGoogleLogin} style={{
+                height: 52, borderRadius: 12,
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                color: '#CBD5E1', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                transition: 'background .2s',
+              }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
               >
-                {/* Official Google G */}
                 <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -400,16 +375,13 @@ export default function LoginPage() {
                 Continue with Google
               </button>
 
-              <button
-                type="button"
-                onClick={handleGithubLogin}
-                className="w-full flex items-center justify-center gap-3 rounded-xl font-medium text-sm transition-all duration-200 active:scale-[0.98]"
-                style={{
-                  height: '52px',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#CBD5E1',
-                }}
+              <button type="button" onClick={handleGithubLogin} style={{
+                height: 52, borderRadius: 12,
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                color: '#CBD5E1', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                transition: 'background .2s',
+              }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
               >
@@ -421,44 +393,31 @@ export default function LoginPage() {
             </div>
 
             {/* Register link */}
-            <p className="mt-7 text-center" style={{ fontSize: '14px', color: '#64748B' }}>
+            <p style={{ marginTop: 28, textAlign: 'center', fontSize: 14, color: '#64748B' }}>
               Don't have an account?{' '}
-              <Link
-                to="/register"
-                className="font-semibold hover:underline"
-                style={{ color: '#a78bfa' }}
-              >
+              <Link to="/register" style={{ color: '#a78bfa', fontWeight: 600, textDecoration: 'none' }}>
                 Create one free
               </Link>
             </p>
           </div>
         </div>
 
-        {/* Footer — trust signal */}
-        <footer className="flex items-center justify-center gap-4 px-5 py-5 flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: '14px', color: '#334155' }}
-              aria-hidden="true"
-            >
-              verified_user
-            </span>
-            <span style={{ fontSize: '12px', color: '#334155' }}>AES-256 encrypted</span>
-          </div>
-          <div style={{ width: '3px', height: '3px', borderRadius: '50%', background: '#334155' }} aria-hidden="true" />
-          <div className="flex items-center gap-1.5">
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: '14px', color: '#334155' }}
-              aria-hidden="true"
-            >
-              shield
-            </span>
-            <span style={{ fontSize: '12px', color: '#334155' }}>GDPR compliant</span>
-          </div>
-          <div style={{ width: '3px', height: '3px', borderRadius: '50%', background: '#334155' }} aria-hidden="true" />
-          <span style={{ fontSize: '12px', color: '#334155' }}>UK privacy law</span>
+        {/* Footer */}
+        <footer style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 16, padding: '16px 20px', flexShrink: 0,
+        }}>
+          {[
+            { icon: 'verified_user', text: 'AES-256 encrypted' },
+            { icon: 'shield',        text: 'GDPR compliant'    },
+          ].map(({ icon, text }) => (
+            <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="material-symbols-outlined"
+                    style={{ fontSize: '14px', color: '#334155' }}
+                    aria-hidden="true">{icon}</span>
+              <span style={{ fontSize: 12, color: '#334155' }}>{text}</span>
+            </div>
+          ))}
         </footer>
       </div>
     </div>
