@@ -543,7 +543,7 @@ export default function DashboardPage() {
   // ── DESKTOP: 2-column layout ───────────────────────────────────
   if (isDesktop) {
     return (
-      <div style={{ paddingBottom: 32 }}>
+      <div style={{ width: '100%', maxWidth: 1440, margin: '0 auto', paddingBottom: 32, paddingInline: 24, boxSizing: 'border-box' }}>
         <style>{`@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
 
         {GreetingBlock}

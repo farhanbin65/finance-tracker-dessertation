@@ -209,7 +209,7 @@ export default function TransactionsPage() {
   const confirmingItem = transactions.find(t => t.id === confirmId)
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', paddingBottom: 32 }}>
+    <div style={{ width: '100%', margin: '0 auto', paddingBottom: 32 }}>
       <style>{`
         @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
         @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }

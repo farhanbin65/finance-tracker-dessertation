@@ -22,11 +22,8 @@ export default function AppLayout({ title, showBack, backPath }: AppLayoutProps)
       <main style={{
         flex: 1,
         overflowY: 'auto',
-        // ✅ Centred content with max width — looks great on all screen sizes
         padding: '16px',
-        maxWidth: 780,
         width: '100%',
-        margin: '0 auto',
         boxSizing: 'border-box',
       }}>
         <Outlet />

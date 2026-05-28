@@ -193,7 +193,7 @@ export default function BudgetPage() {
   const confirmItem   = categories.find(c => c.id === confirmId)
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', paddingBottom: 32 }}>
+    <div style={{ width: '100%', margin: '0 auto', paddingBottom: 32 }}>
       <style>{`
         @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
       `}</style>
