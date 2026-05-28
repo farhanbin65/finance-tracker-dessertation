@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import AppLayout from './components/layout/AppLayout'
-import LoginPage       from './pages/LoginPage'
+import LoginPage        from './features/auth/LoginPage'
 import CallbackPage    from './pages/CallbackPage'
 import DashboardPage   from './pages/DashboardPage'
 import TransactionsPage from './pages/TransactionsPage'
