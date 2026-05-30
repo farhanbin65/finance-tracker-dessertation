@@ -1,37 +1,40 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import AppLayout from './components/layout/AppLayout'
+
+// Auth pages
 import LoginPage        from './features/auth/LoginPage'
-import CallbackPage    from './pages/CallbackPage'
-import DashboardPage   from './pages/DashboardPage'
+import RegisterPage     from './features/auth/RegisterPage'      // ← ADD
+import ForgotPasswordPage from './features/auth/ForgotPasswordPage' // ← ADD
+import CallbackPage     from './pages/CallbackPage'
+
+// App pages
+import DashboardPage    from './pages/DashboardPage'
 import TransactionsPage from './pages/TransactionsPage'
-import BudgetPage      from './pages/BudgetPage'
-import GoalsPage       from './pages/GoalsPage'
-import ChatPage        from './pages/ChatPage'
-import ProfilePage     from './pages/ProfilePage'
+import BudgetPage       from './pages/BudgetPage'
+import GoalsPage        from './pages/GoalsPage'
+import ChatPage         from './pages/ChatPage'
+import ProfilePage      from './pages/ProfilePage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth0()
-
-  // ✅ Check BOTH Auth0 session AND local JWT token
   const hasJwtToken = !!localStorage.getItem('fs_token')
 
   if (isLoading) return (
     <div style={{
-      display:'flex', alignItems:'center', justifyContent:'center',
-      minHeight:'100dvh', background:'var(--bg-primary)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100dvh', background: 'var(--bg-primary)',
     }}>
       <div style={{
-        width:36, height:36, borderRadius:'50%',
-        border:'3px solid var(--accent-light)',
-        borderTopColor:'var(--accent)',
-        animation:'spin 0.8s linear infinite',
+        width: 36, height: 36, borderRadius: '50%',
+        border: '3px solid var(--accent-light)',
+        borderTopColor: 'var(--accent)',
+        animation: 'spin 0.8s linear infinite',
       }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 
-  // Allow access if Auth0 authenticated OR has JWT token
   if (!isAuthenticated && !hasJwtToken) return <Navigate to="/login" replace />
   return <>{children}</>
 }
@@ -39,14 +42,16 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      {/* Public routes */}
-      <Route path="/login"    element={<LoginPage />} />
-      <Route path="/callback" element={<CallbackPage />} />
+      {/* ── Public routes ───────────────────────────────────── */}
+      <Route path="/login"            element={<LoginPage />} />
+      <Route path="/register"         element={<RegisterPage />} />        {/* ✅ ADDED */}
+      <Route path="/forgot-password"  element={<ForgotPasswordPage />} />  {/* ✅ ADDED */}
+      <Route path="/callback"         element={<CallbackPage />} />
 
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* Protected routes */}
+      {/* ── Protected routes ─────────────────────────────────── */}
       <Route element={
         <PrivateRoute>
           <AppLayout />
