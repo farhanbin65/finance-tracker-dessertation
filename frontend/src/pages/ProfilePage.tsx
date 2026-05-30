@@ -31,9 +31,15 @@ export default function ProfilePage() {
   // ── Sign out ───────────────────────────────────────
   function handleSignOut() {
     localStorage.removeItem('fs_token')
+    localStorage.removeItem('fs_refresh_token')
+    localStorage.removeItem('fs_user')
     localStorage.removeItem('fs_name')
     localStorage.removeItem('fs_email')
-    logout({ logoutParams: { returnTo: window.location.origin + '/login' } })
+    logout({
+      logoutParams: {
+        returnTo: window.location.origin + '/login',
+      },
+    })
   }
 
   // ── GDPR export ────────────────────────────────────
