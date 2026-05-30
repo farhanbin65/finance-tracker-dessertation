@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { useToast } from '../components/ui/Toast'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -139,6 +140,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
 // ══════════════════════════════════════════════════════════════════
 export default function TransactionsPage() {
   const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading]           = useState(true)
@@ -147,6 +149,7 @@ export default function TransactionsPage() {
   const [search, setSearch]             = useState('')
   const [showSearch, setShowSearch]     = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editTarget, setEditTarget]     = useState<Transaction | null>(null)
   const [confirmId, setConfirmId]       = useState<string | null>(null)
   const searchRef                       = useRef<HTMLInputElement>(null)
 
@@ -188,8 +191,9 @@ export default function TransactionsPage() {
         headers: { Authorization: `Bearer ${token}` },
       })
       setTransactions(prev => prev.filter(t => t.id !== id))
+      showToast('Transaction deleted', 'success')
     } catch {
-      setError('Failed to delete. Please try again.')
+      showToast('Failed to delete. Please try again.', 'error')
     } finally {
       setConfirmId(null)
     }
@@ -360,6 +364,7 @@ export default function TransactionsPage() {
                 <TransactionItem
                   key={tx.id}
                   tx={tx}
+                  onEdit={() => setEditTarget(tx)}
                   onDelete={() => setConfirmId(tx.id)}
                 />
               ))}
@@ -393,7 +398,19 @@ export default function TransactionsPage() {
       {showAddModal && (
         <AddTransactionModal
           onClose={() => setShowAddModal(false)}
-          onAdded={() => { setShowAddModal(false); fetchTransactions() }}
+          onAdded={() => { setShowAddModal(false); fetchTransactions(); showToast('Transaction added successfully!', 'success') }}
+        />
+      )}
+
+      {editTarget && (
+        <EditTransactionModal
+          tx={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null)
+            fetchTransactions()
+            showToast('Transaction updated', 'success')
+          }}
         />
       )}
 
@@ -433,8 +450,8 @@ function SummaryCard({ label, value, color, icon }: {
 }
 
 // ── Transaction row ────────────────────────────────────────────────
-function TransactionItem({ tx, onDelete }: {
-  tx: Transaction; onDelete: () => void
+function TransactionItem({ tx, onEdit, onDelete }: {
+  tx: Transaction; onEdit: () => void; onDelete: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   const { icon, color } = getCat(tx.category)
@@ -483,6 +500,25 @@ function TransactionItem({ tx, onDelete }: {
         </p>
       </div>
 
+      <button
+        onClick={e => { e.stopPropagation(); onEdit() }}
+        aria-label={`Edit ${tx.title}`}
+        style={{
+          width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+          background: hovered ? 'var(--accent-light)' : 'transparent',
+          border: '1px solid',
+          borderColor: hovered ? 'var(--accent)' : 'transparent',
+          color: hovered ? 'var(--accent)' : 'var(--text-muted)',
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all .2s', padding: 0,
+          opacity: hovered ? 1 : 0.4,
+          marginRight: 4,
+        }}
+      >
+        <i className="ti ti-edit" style={{ fontSize: 15 }} aria-hidden="true" />
+      </button>
+
       {/* ✅ Delete button — always visible (small), scales on hover */}
       {/* Works on both mobile tap and desktop hover */}
       <button
@@ -514,6 +550,7 @@ function AddTransactionModal({ onClose, onAdded }: {
   onClose: () => void; onAdded: () => void
 }) {
   const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
   const [form, setForm] = useState({
     title: '', amount: '',
     type: 'expense' as 'income' | 'expense',
@@ -540,6 +577,7 @@ function AddTransactionModal({ onClose, onAdded }: {
         body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }),
       })
       if (!res.ok) throw new Error()
+      showToast('Transaction added successfully!', 'success')
       onAdded()
     } catch {
       setErr('Could not save transaction. Please try again.')
@@ -678,6 +716,179 @@ function AddTransactionModal({ onClose, onAdded }: {
               Saving...
             </>
           ) : 'Add transaction'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Edit Transaction Modal ─────────────────────────────────────────
+function EditTransactionModal({ tx, onClose, onSaved }: {
+  tx: Transaction; onClose: () => void; onSaved: () => void
+}) {
+  const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
+
+  const [form, setForm] = useState({
+    title: tx.title,
+    amount: tx.amount.toString(),
+    type: tx.type as 'income' | 'expense',
+    category: tx.category,
+    date: tx.date.split('T')[0],
+    notes: tx.notes || '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr] = useState('')
+
+  const update = (k: keyof typeof form, v: string) =>
+    setForm(p => ({ ...p, [k]: v }))
+
+  async function handleSubmit() {
+    if (!form.title.trim()) return setErr('Description is required.')
+    if (!form.amount || isNaN(Number(form.amount))) return setErr('Enter a valid amount.')
+    if (Number(form.amount) <= 0) return setErr('Amount must be greater than zero.')
+    setErr('')
+    setSubmitting(true)
+    try {
+      const token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const res = await fetch(`${API_URL}/api/transactions/${tx.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }),
+      })
+      if (!res.ok) throw new Error()
+      onSaved()
+    } catch {
+      setErr('Could not update transaction. Please try again.')
+      showToast('Update failed. Please try again.', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+      zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 520,
+        background: 'var(--bg-secondary)',
+        borderRadius: '24px 24px 0 0',
+        padding: '20px 20px',
+        paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
+        border: '1px solid var(--border)',
+      }}>
+        <div style={{
+          width: 36, height: 4, background: 'rgba(255,255,255,0.15)',
+          borderRadius: 99, margin: '0 auto 18px',
+        }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: 18 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Edit transaction
+          </h2>
+          <button onClick={onClose} aria-label="Close" style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            color: 'var(--text-muted)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <i className="ti ti-x" style={{ fontSize: 16 }} />
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+          {(['expense', 'income'] as const).map(t => (
+            <button key={t} onClick={() => update('type', t)} style={{
+              height: 44, borderRadius: 12, cursor: 'pointer',
+              border: `1.5px solid ${form.type === t ? 'var(--accent)' : 'var(--border)'}`,
+              background: form.type === t ? 'var(--accent-light)' : 'var(--bg-card)',
+              color: form.type === t ? 'var(--accent)' : 'var(--text-secondary)',
+              fontSize: 13, fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <i className={t === 'expense' ? 'ti ti-arrow-up-right' : 'ti ti-arrow-down-left'}
+                 style={{ fontSize: 15 }} aria-hidden="true" />
+              {t === 'expense' ? 'Expense' : 'Income'}
+            </button>
+          ))}
+        </div>
+
+        {[
+          { id: 'edit-title', label: 'Description', type: 'text', key: 'title', placeholder: 'e.g. Tesco, Salary...' },
+          { id: 'edit-amount', label: 'Amount (£)', type: 'number', key: 'amount', placeholder: '0.00' },
+          { id: 'edit-date', label: 'Date', type: 'date', key: 'date', placeholder: '' },
+        ].map(f => (
+          <div key={f.id} style={{ marginBottom: 12 }}>
+            <label htmlFor={f.id} style={{
+              fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+              letterSpacing: '.04em', display: 'block', marginBottom: 6,
+              textTransform: 'uppercase',
+            }}>{f.label}</label>
+            <input
+              id={f.id} type={f.type}
+              value={form[f.key as keyof typeof form]}
+              onChange={e => update(f.key as keyof typeof form, e.target.value)}
+              placeholder={f.placeholder}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--bg-card)', border: '1px solid var(--border)',
+                borderRadius: 12, padding: '12px 14px', fontSize: 14, height: 48,
+                color: 'var(--text-primary)', outline: 'none',
+              }}
+            />
+          </div>
+        ))}
+
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="edit-category" style={{
+            fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+            letterSpacing: '.04em', display: 'block', marginBottom: 6,
+            textTransform: 'uppercase',
+          }}>Category</label>
+          <select id="edit-category" value={form.category}
+            onChange={e => update('category', e.target.value)}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 12, padding: '12px 14px', fontSize: 14, height: 48,
+              color: 'var(--text-primary)', outline: 'none', appearance: 'none',
+            }}>
+            {['Food','Transport','Shopping','Entertainment','Subscriptions','Health','Rent','Utilities','Income','Other']
+              .map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        {err && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '10px 14px', borderRadius: 10, marginBottom: 12,
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+          }}>
+            <i className="ti ti-alert-circle" style={{ fontSize: 15, color: 'var(--red)', flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: 'var(--red)' }}>{err}</p>
+          </div>
+        )}
+
+        <button onClick={handleSubmit} disabled={submitting} style={{
+          width: '100%', height: 52, borderRadius: 14, border: 'none',
+          background: submitting ? 'rgba(124,58,237,0.6)' : 'var(--accent)',
+          color: '#ede0ff', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          opacity: submitting ? 0.7 : 1,
+        }}>
+          {submitting ? (
+            <>
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                <path d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
+              Saving...
+            </>
+          ) : 'Save changes'}
         </button>
       </div>
     </div>

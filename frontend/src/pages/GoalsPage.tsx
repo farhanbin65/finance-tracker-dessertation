@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { useToast } from '../components/ui/Toast'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -219,6 +220,7 @@ function SubmitBtn({ label, loading, onClick }: {
 // ══════════════════════════════════════════════════════════════════
 export default function GoalsPage() {
   const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
 
   const [goals, setGoals]               = useState<SavingsGoal[]>([])
   const [loading, setLoading]           = useState(true)
@@ -248,6 +250,7 @@ export default function GoalsPage() {
     } catch {
       setGoals(DEMO)
       setError('Using demo data — connect your backend to see real goals.')
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setLoading(false)
     }
@@ -261,8 +264,9 @@ export default function GoalsPage() {
         headers: { Authorization: `Bearer ${token}` },
       })
       setGoals(prev => prev.filter(g => g.id !== id))
+      showToast('Goal deleted', 'success')
     } catch {
-      setError('Failed to delete goal. Please try again.')
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setConfirmId(null)
     }
@@ -387,18 +391,18 @@ export default function GoalsPage() {
       {showAddModal && (
         <GoalModal mode="add"
           onClose={() => setShowAddModal(false)}
-          onSaved={() => { setShowAddModal(false); fetchGoals() }} />
+          onSaved={() => { setShowAddModal(false); fetchGoals(); showToast('Goal created!', 'success') }} />
       )}
       {editTarget && (
         <GoalModal mode="edit" existing={editTarget}
           onClose={() => setEditTarget(null)}
-          onSaved={() => { setEditTarget(null); fetchGoals() }} />
+          onSaved={() => { setEditTarget(null); fetchGoals(); showToast('Goal updated', 'success') }} />
       )}
       {depositTarget && (
         <DepositModal
           goal={depositTarget}
           onClose={() => setDepositTarget(null)}
-          onDeposited={() => { setDepositTarget(null); fetchGoals() }} />
+          onDeposited={() => { setDepositTarget(null); fetchGoals(); showToast('Deposit added to your goal!', 'success') }} />
       )}
       {confirmId && confirmItem && (
         <ConfirmDialog
@@ -628,6 +632,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
   onClose: () => void; onSaved: () => void
 }) {
   const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
   const [form, setForm] = useState({
     name:          existing?.name ?? '',
     target_amount: existing?.target_amount?.toString() ?? '',
@@ -665,6 +670,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
       onSaved()
     } catch {
       setErr('Could not save. Please try again.')
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -732,6 +738,7 @@ function DepositModal({ goal, onClose, onDeposited }: {
   goal: SavingsGoal; onClose: () => void; onDeposited: () => void
 }) {
   const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
   const [amount, setAmount]         = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr]               = useState('')
@@ -759,6 +766,7 @@ function DepositModal({ goal, onClose, onDeposited }: {
       onDeposited()
     } catch {
       setErr('Could not save deposit. Please try again.')
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setSubmitting(false)
     }

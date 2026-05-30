@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { useToast } from '../components/ui/Toast'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -112,6 +113,7 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }: {
 // ══════════════════════════════════════════════════════════════════
 export default function BudgetPage() {
   const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
 
   const [categories, setCategories] = useState<BudgetCategory[]>([])
   const [summary, setSummary]       = useState<BudgetSummary | null>(null)
@@ -155,6 +157,7 @@ export default function BudgetPage() {
       setCategories(DEMO)
       setSummary({ total_allocated: 1500, total_spent: 1285, percentage: 86 })
       setError('Using demo data — connect your backend to see real budgets.')
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setLoading(false)
     }
@@ -180,8 +183,9 @@ export default function BudgetPage() {
         })
         return updated
       })
+      showToast('Budget category removed', 'success')
     } catch {
-      setError('Failed to delete. Please try again.')
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setConfirmId(null)
     }
@@ -380,7 +384,7 @@ export default function BudgetPage() {
         <BudgetModal
           mode="add"
           onClose={() => setShowAddModal(false)}
-          onSaved={() => { setShowAddModal(false); fetchBudget() }}
+          onSaved={() => { setShowAddModal(false); fetchBudget(); showToast('Budget category added', 'success') }}
         />
       )}
       {editTarget && (
@@ -388,7 +392,7 @@ export default function BudgetPage() {
           mode="edit"
           existing={editTarget}
           onClose={() => setEditTarget(null)}
-          onSaved={() => { setEditTarget(null); fetchBudget() }}
+          onSaved={() => { setEditTarget(null); fetchBudget(); showToast('Budget updated', 'success') }}
         />
       )}
 
@@ -541,6 +545,7 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
   onClose: () => void; onSaved: () => void
 }) {
   const { getAccessTokenSilently } = useAuth0()
+  const { showToast } = useToast()
   const [form, setForm]       = useState({
     category: existing?.category ?? 'Food',
     limit:    existing?.limit?.toString() ?? '',
@@ -570,6 +575,7 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
       onSaved()
     } catch {
       setErr('Could not save. Please try again.')
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setSubmitting(false)
     }
