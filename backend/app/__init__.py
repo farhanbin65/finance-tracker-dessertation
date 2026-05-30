@@ -22,6 +22,10 @@ def create_app() -> Flask:
     """
     app = Flask(__name__)
 
+    # Ensure JSON responses preserve Unicode characters (e.g., emoji).
+    app.config["JSON_AS_ASCII"] = False
+    app.json.ensure_ascii = False
+
     # ── CORS ──────────────────────────────────────────────
     # Only allow requests from our frontend origins
     CORS(app, origins="*", supports_credentials=False)

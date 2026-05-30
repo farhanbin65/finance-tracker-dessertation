@@ -27,6 +27,7 @@ def get_db() -> Database:
             config.MONGO_URI,
             serverSelectionTimeoutMS=5000,  # Fail fast if Mongo is unreachable
             connectTimeoutMS=5000,
+            unicode_decode_error_handler="ignore",
         )
         _db = _client[config.MONGO_DB_NAME]
         logger.info("MongoDB connected", extra={"database": config.MONGO_DB_NAME})
