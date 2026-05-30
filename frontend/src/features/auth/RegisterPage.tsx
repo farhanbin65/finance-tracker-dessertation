@@ -67,8 +67,8 @@ export default function RegisterPage() {
   }
 
   const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = '#0F172A'
-    e.currentTarget.style.boxShadow   = '0 0 0 3px rgba(15,23,42,0.08)'
+    e.currentTarget.style.borderColor = '#1E293B'
+    e.currentTarget.style.boxShadow   = '0 0 0 3px rgba(30,41,59,0.08)'
   }
   const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.style.borderColor = '#E2E8F0'
@@ -110,14 +110,14 @@ export default function RegisterPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'row',
-      background: '#F8FAFC', fontFamily: 'Inter, sans-serif', color: '#0F172A',
+      background: '#FAFAF9', fontFamily: 'Inter, sans-serif', color: '#0F172A',
     }}>
 
       {/* ── LEFT PANEL — desktop only ──────────────────────────── */}
       {isDesktop && (
         <div style={{
           width: '52%', flexShrink: 0,
-          background: '#0F172A',
+          background: '#1E293B',
           display: 'flex', flexDirection: 'column',
           justifyContent: 'space-between',
           padding: '48px 56px',
@@ -127,8 +127,8 @@ export default function RegisterPage() {
           <div style={{
             position: 'absolute', top: '-60px', left: '-60px',
             width: 280, height: 280, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
             pointerEvents: 'none',
           }} aria-hidden="true" />
           <div style={{
@@ -149,11 +149,11 @@ export default function RegisterPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 1 }}>
             <div style={{
               width: 38, height: 38, borderRadius: 10,
-              background: '#fff',
+              background: '#F1F5F9',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span className="material-symbols-outlined"
-                    style={{ color: '#0F172A', fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
+                    style={{ color: '#1E293B', fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
                     aria-hidden="true">trending_up</span>
             </div>
             <span style={{ fontSize: 20, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
@@ -228,7 +228,7 @@ export default function RegisterPage() {
       {/* ── RIGHT FORM PANEL ──────────────────────────────────── */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
-        minHeight: '100vh', minWidth: 0, background: '#F8FAFC',
+        minHeight: '100vh', minWidth: 0, background: '#FAFAF9',
       }}>
 
         {/* Mobile header */}
@@ -237,11 +237,11 @@ export default function RegisterPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '0 20px', height: 64,
             borderBottom: '1px solid #E2E8F0',
-            background: '#fff', flexShrink: 0,
+            background: '#FAFAF9', flexShrink: 0,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
-                width: 32, height: 32, borderRadius: 9, background: '#0F172A',
+                width: 32, height: 32, borderRadius: 9, background: '#1E293B',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <span className="material-symbols-outlined"
@@ -450,8 +450,8 @@ export default function RegisterPage() {
                   onClick={() => setConsented(!consented)}
                   style={{
                     width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                    background: consented ? '#0F172A' : '#fff',
-                    border: `1.5px solid ${consented ? '#0F172A' : '#D1D5DB'}`,
+                    background: consented ? '#1E293B' : '#fff',
+                    border: `1.5px solid ${consented ? '#1E293B' : '#D1D5DB'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', transition: 'all .15s',
                   }}
@@ -465,7 +465,7 @@ export default function RegisterPage() {
                 </button>
                 <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5 }}>
                   I agree to the{' '}
-                  <a href="#" style={{ color: '#0F172A', fontWeight: 600 }}>Privacy Policy</a>
+                  <a href="#" style={{ color: '#1E293B', fontWeight: 600 }}>Privacy Policy</a>
                   {' '}and consent to data processing under GDPR.
                 </p>
               </div>
@@ -475,15 +475,15 @@ export default function RegisterPage() {
                 type="submit" disabled={loading}
                 style={{
                   height: 52, borderRadius: 12, border: 'none',
-                  background: loading ? '#374151' : '#0F172A',
+                  background: loading ? '#475569' : '#1E293B',
                   color: '#fff', fontSize: 15, fontWeight: 600,
                   cursor: loading ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   marginTop: 4, transition: 'background .15s',
                   opacity: loading ? 0.8 : 1,
                 }}
-                onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#1E293B' }}
-                onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#0F172A' }}
+                onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#334155' }}
+                onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#1E293B' }}
               >
                 {loading ? (
                   <>
@@ -501,8 +501,8 @@ export default function RegisterPage() {
             {/* Sign in link */}
             <p style={{ marginTop: 20, textAlign: 'center', fontSize: 14, color: '#64748B' }}>
               Already have an account?{' '}
-              <Link to="/login"
-                    style={{ color: '#0F172A', fontWeight: 600, textDecoration: 'none' }}>
+                <Link to="/login"
+                  style={{ color: '#1E293B', fontWeight: 600, textDecoration: 'none' }}>
                 Sign in →
               </Link>
             </p>
