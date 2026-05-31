@@ -123,13 +123,123 @@ flowchart LR
 ```
 
 ### Sequence — Auth Flow
-![Sequence Diagram: Login & JWT Auth Flow](docs/diagrams/finsight_sequence_auth.svg)
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Browser
+  participant Frontend as React Frontend
+  participant Backend as Flask Backend
+  participant Auth0 as Auth0
+  participant MongoDB as MongoDB Atlas
+  participant JWT as PyJWT / localStorage
+
+  Browser->>Frontend: Submit credentials
+  Frontend->>Backend: POST /api/auth/login
+  Backend->>MongoDB: Find user by email
+  MongoDB-->>Backend: User document
+  Backend->>Backend: bcrypt.verify(password, hash)
+  Backend->>JWT: Encode access + refresh tokens
+  JWT-->>Frontend: Access token + refresh token
+  Frontend->>JWT: localStorage.setItem('fs_token', ...)
+  Frontend-->>Browser: Navigate to /dashboard
+
+  Browser->>Frontend: Click Google / GitHub button
+  Frontend->>Auth0: Redirect to Auth0 universal login
+  Auth0-->>Frontend: Callback with id_token
+  Frontend->>Backend: Auth0 token via hybrid guard
+  Backend-->>Frontend: Access granted
+  Frontend-->>Browser: Navigate to /dashboard
+```
 
 ### Sequence — Transaction CRUD
-![Sequence Diagram: Transaction CRUD Flow](docs/diagrams/finsight_sequence_transactions.svg)
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User
+  participant Frontend as React Frontend
+  participant Backend as Flask Backend
+  participant MongoDB as MongoDB Atlas
+
+  User->>Frontend: Fill form and tap save
+  Frontend->>Backend: POST /api/transactions + Bearer JWT
+  Backend->>Backend: Client-side validation (Pydantic schema)
+  Backend->>MongoDB: insertOne(transaction)
+  MongoDB-->>Backend: inserted_id
+  Backend-->>Frontend: 201 Created - new transaction
+  Frontend-->>User: Show toast + update list
+
+  User->>Frontend: Open edit modal
+  Frontend->>Backend: PUT /api/transactions/:id + Bearer JWT
+  Backend->>MongoDB: updateOne({ _id, user_id })
+  MongoDB-->>Backend: modified_count: 1
+  Backend-->>Frontend: 200 OK - updated document
+  Frontend-->>User: Close modal + refresh list
+
+  User->>Frontend: Confirm delete dialog
+  Frontend->>Backend: DELETE /api/transactions/:id + Bearer JWT
+  Backend->>MongoDB: deleteOne({ _id, user_id })
+  MongoDB-->>Backend: deleted_count: 1
+  Backend-->>Frontend: 200 OK - success
+  Frontend-->>User: Show toast + remove from list
+```
 
 ### Class Diagram
-![Class Diagram: Models Layer](docs/diagrams/finsight_class_diagram.svg)
+```mermaid
+classDiagram
+  class User {
+    +ObjectId _id
+    +str full_name
+    +str email
+    +str password_hash
+    +str currency
+    +datetime created_at
+  }
+
+  class Transaction {
+    +ObjectId _id
+    +ObjectId user_id
+    +str title
+    +float amount
+    +str type
+    +str category
+    +datetime date
+    +str notes
+  }
+
+  class Budget {
+    +ObjectId _id
+    +ObjectId user_id
+    +str category
+    +float limit
+    +float spent
+    +int month
+    +int year
+  }
+
+  class Goal {
+    +ObjectId _id
+    +ObjectId user_id
+    +str name
+    +float target_amount
+    +float saved_amount
+    +datetime target_date
+    +bool is_completed
+  }
+
+  class ChatMessage {
+    +ObjectId _id
+    +ObjectId user_id
+    +str role
+    +str content
+    +str model
+    +datetime created_at
+  }
+
+  User "1" --> "many" Transaction : owns
+  User "1" --> "many" Budget : owns
+  User "1" --> "many" Goal : owns
+  User "1" --> "many" ChatMessage : owns
+```
 
 ---
 
