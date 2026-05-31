@@ -151,6 +151,8 @@ sequenceDiagram
   Frontend-->>Browser: Navigate to /dashboard
 ```
 
+<br>
+
 ### Sequence — Transaction CRUD
 ```mermaid
 sequenceDiagram
@@ -182,6 +184,8 @@ sequenceDiagram
   Backend-->>Frontend: 200 OK - success
   Frontend-->>User: Show toast + remove from list
 ```
+
+<br>
 
 ### Class Diagram
 ```mermaid
