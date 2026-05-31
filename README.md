@@ -180,19 +180,13 @@ flowchart LR
 ```
 
 ### Sequence — Auth Flow
-```mermaid
-[paste diagram 2 here]
-```
+![Sequence Diagram: Login & JWT Auth Flow](docs/diagrams/finsight_sequence_auth.svg)
 
 ### Sequence — Transaction CRUD
-```mermaid
-[paste diagram 3 here]
-```
+![Sequence Diagram: Transaction CRUD Flow](docs/diagrams/finsight_sequence_transactions.svg)
 
 ### Class Diagram
-```mermaid
-[paste diagram 4 here]
-```
+![Class Diagram: Models Layer](docs/diagrams/finsight_class_diagram.svg)
 
 ## Tech Stack
 
