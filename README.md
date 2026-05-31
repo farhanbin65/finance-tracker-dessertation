@@ -122,6 +122,8 @@ flowchart LR
   P --> Q & R & S & T
 ```
 
+---
+
 ### Sequence — Auth Flow
 ```mermaid
 sequenceDiagram
@@ -151,7 +153,7 @@ sequenceDiagram
   Frontend-->>Browser: Navigate to /dashboard
 ```
 
-<br>
+---
 
 ### Sequence — Transaction CRUD
 ```mermaid
@@ -185,7 +187,7 @@ sequenceDiagram
   Frontend-->>User: Show toast + remove from list
 ```
 
-<br>
+---
 
 ### Class Diagram
 ```mermaid
