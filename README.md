@@ -124,6 +124,76 @@ flowchart LR
 
 ---
 
+## System Design
+
+### Use Case Diagram
+```mermaid
+flowchart LR
+  Guest["Guest User"]
+  AuthUser["Authenticated User"]
+  Auth0["Auth0"]
+  Groq["Groq AI"]
+
+  subgraph FinSight["FinSight Platform"]
+    UC1(("Register account"))
+    UC2(("Login with email/password"))
+    UC3(("Login with Google/GitHub"))
+    UC4(("Reset password"))
+    UC5(("Add transaction"))
+    UC6(("Edit / delete transaction"))
+    UC7(("Search history"))
+    UC8(("View monthly summary"))
+    UC9(("Create budget"))
+    UC10(("Track budget progress"))
+    UC11(("Create savings goal"))
+    UC12(("Deposit to goal"))
+    UC13(("Chat with AI assistant"))
+    UC14(("Get spending insights"))
+    UC15(("View dashboard"))
+    UC16(("Update profile / theme"))
+  end
+
+  Guest --> UC1
+  Guest --> UC2
+  Guest --> UC3
+  Guest --> UC4
+
+  AuthUser --> UC5
+  AuthUser --> UC6
+  AuthUser --> UC7
+  AuthUser --> UC8
+  AuthUser --> UC9
+  AuthUser --> UC10
+  AuthUser --> UC11
+  AuthUser --> UC12
+  AuthUser --> UC13
+  AuthUser --> UC14
+  AuthUser --> UC15
+  AuthUser --> UC16
+
+  UC1 -.-> Auth0
+  UC2 -.-> Auth0
+  UC3 -.-> Auth0
+  UC4 -.-> Auth0
+  UC13 -.-> Groq
+  UC14 -.-> Groq
+```
+
+### Sequence — Auth Flow
+```mermaid
+[paste diagram 2 here]
+```
+
+### Sequence — Transaction CRUD
+```mermaid
+[paste diagram 3 here]
+```
+
+### Class Diagram
+```mermaid
+[paste diagram 4 here]
+```
+
 ## Tech Stack
 
 ### Frontend
