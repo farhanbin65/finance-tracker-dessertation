@@ -5,7 +5,6 @@
  */
 
 import { useState } from 'react'
-import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { useToast } from '../components/ui/Toast'
@@ -29,7 +28,6 @@ const cardStyle: React.CSSProperties = {
 }
 
 export default function ProfilePage() {
-  const { user, logout }                   = useAuth0()
   const navigate                           = useNavigate()
   const { mode, palette, setMode, setPalette } = useTheme()
   const { showToast }                      = useToast()
@@ -39,10 +37,9 @@ export default function ProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [exporting, setExporting]          = useState(false)
 
-  // ✅ No hardcoded fallback names
-  const userName   = user?.name  || localStorage.getItem('fs_name')  || 'Your Account'
-  const userEmail  = user?.email || localStorage.getItem('fs_email') || ''
-  const userAvatar = user?.picture || null
+  const userName   = localStorage.getItem('fs_name')  || 'Your Account'
+  const userEmail  = localStorage.getItem('fs_email') || ''
+  const userAvatar = null
   const initials   = userName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
   // ── Sign out ───────────────────────────────────────────────────
@@ -52,7 +49,7 @@ export default function ProfilePage() {
     localStorage.removeItem('fs_user')
     localStorage.removeItem('fs_name')
     localStorage.removeItem('fs_email')
-    logout({ logoutParams: { returnTo: window.location.origin + '/login' } })
+    navigate('/login')
   }
 
   // ── GDPR export ────────────────────────────────────────────────
