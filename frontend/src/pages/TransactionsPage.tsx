@@ -5,7 +5,6 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { useAuth0 } from '@auth0/auth0-react'
 import { useToast } from '../components/ui/Toast'
 import { getAuthToken } from '../utils/getAuthToken'
 
@@ -140,7 +139,6 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
 // Main Page
 // ══════════════════════════════════════════════════════════════════
 export default function TransactionsPage() {
-  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -162,7 +160,7 @@ export default function TransactionsPage() {
   }, [showSearch])
 
   async function getToken() {
-    return getAuthToken(getIdTokenClaims)
+    return getAuthToken()
   }
 
   async function fetchTransactions() {
@@ -549,7 +547,6 @@ const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Subscript
 function AddTransactionModal({ onClose, onAdded }: {
   onClose: () => void; onAdded: () => void
 }) {
-  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
   const [form, setForm] = useState({
     title: '', amount: '',
@@ -570,7 +567,7 @@ function AddTransactionModal({ onClose, onAdded }: {
     if (Number(form.amount) <= 0)                   return setErr('Amount must be greater than zero.')
     setErr(''); setSubmitting(true)
     try {
-      const token = await getAuthToken(getIdTokenClaims)
+      const token = await getAuthToken()
       const res = await fetch(`${API_URL}/api/transactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -726,7 +723,6 @@ function AddTransactionModal({ onClose, onAdded }: {
 function EditTransactionModal({ tx, onClose, onSaved }: {
   tx: Transaction; onClose: () => void; onSaved: () => void
 }) {
-  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
 
   const [form, setForm] = useState({
@@ -750,7 +746,7 @@ function EditTransactionModal({ tx, onClose, onSaved }: {
     setErr('')
     setSubmitting(true)
     try {
-      const token = await getAuthToken(getIdTokenClaims)
+      const token = await getAuthToken()
       const res = await fetch(`${API_URL}/api/transactions/${tx.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

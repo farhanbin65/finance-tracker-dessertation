@@ -1,44 +1,23 @@
 /**
- * FinSight — Shared auth token utility
- *
- * Gets the best available token for API calls.
- * Priority: custom JWT -> Auth0 id_token -> empty string
+ * FinSight — getAuthToken utility
+ * Reads the custom JWT from localStorage.
+ * Auth0 disabled — email/password login only.
  */
+export async function getAuthToken(): Promise<string> {
+  const token = localStorage.getItem('fs_token')
+  if (!token) return ''
 
-type IdTokenClaims = { __raw?: string } | null | undefined
-
-function decodeJwtPayload(token: string): { exp?: number } | null {
+  // Check token is not expired
   try {
-    const payload = token.split('.')[1]
-    if (!payload) return null
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const normalized = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
-    return JSON.parse(atob(normalized))
-  } catch {
-    return null
-  }
-}
-
-export async function getAuthToken(
-  getIdTokenClaims: () => Promise<IdTokenClaims>
-): Promise<string> {
-  const stored = localStorage.getItem('fs_token')
-  if (stored) {
-    const payload = decodeJwtPayload(stored)
-    const isExpired = payload?.exp ? payload.exp * 1000 <= Date.now() : false
-    if (!isExpired) return stored
-  }
-
-  try {
-    const claims = await getIdTokenClaims()
-    const idToken = claims?.__raw
-    if (idToken) {
-      localStorage.setItem('fs_token', idToken)
-      return idToken
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const isExpired = payload.exp * 1000 < Date.now()
+    if (isExpired) {
+      localStorage.removeItem('fs_token')
+      return ''
     }
+    return token
   } catch {
-    // Auth0 not available
+    localStorage.removeItem('fs_token')
+    return ''
   }
-
-  return ''
 }

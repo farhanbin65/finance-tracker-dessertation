@@ -29,7 +29,7 @@ const cardStyle: React.CSSProperties = {
 }
 
 export default function ProfilePage() {
-  const { getIdTokenClaims, user, logout } = useAuth0()
+  const { user, logout }                   = useAuth0()
   const navigate                           = useNavigate()
   const { mode, palette, setMode, setPalette } = useTheme()
   const { showToast }                      = useToast()
@@ -59,7 +59,7 @@ export default function ProfilePage() {
   async function handleDataExport() {
     try {
       setExporting(true)
-      const token = await getAuthToken(getIdTokenClaims)
+      const token = await getAuthToken()
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/auth/export`,
         { headers: { Authorization: `Bearer ${token}` } }

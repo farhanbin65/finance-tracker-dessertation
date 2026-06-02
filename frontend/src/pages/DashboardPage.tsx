@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate } from 'react-router-dom'
 import { getAuthToken } from '../utils/getAuthToken'
 
@@ -167,7 +166,6 @@ function Card({ children, style = {} }: { children: React.ReactNode; style?: Rea
 
 // ══════════════════════════════════════════════════════════════════
 export default function DashboardPage() {
-  const { getIdTokenClaims, user } = useAuth0()
   const navigate   = useNavigate()
   const isDesktop  = useIsDesktop()
 
@@ -179,7 +177,7 @@ export default function DashboardPage() {
   const [aiTip, setAiTip]               = useState('')
   const [aiTipLoading, setAiTipLoading] = useState(true)
 
-  const userName  = user?.name || localStorage.getItem('fs_name') || 'there'
+  const userName  = localStorage.getItem('fs_name') || 'there'
   const firstName = userName.split(' ')[0]
   const now       = new Date()
   const monthName = now.toLocaleDateString('en-GB', { month: 'long' })
@@ -187,7 +185,7 @@ export default function DashboardPage() {
   useEffect(() => { fetchDashboard() }, [])
 
   async function getToken() {
-    return getAuthToken(getIdTokenClaims)
+    return getAuthToken()
   }
 
   async function fetchDashboard() {
