@@ -15,10 +15,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       {/* Auth0 wraps everything — must be outermost provider */}
       <Auth0Provider
-        domain={domain}
-        clientId={clientId}
+        domain={import.meta.env.VITE_AUTH0_DOMAIN}
+        clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
         authorizationParams={{
-          redirect_uri: callbackUrl,
+          redirect_uri: import.meta.env.VITE_AUTH0_CALLBACK_URL
         }}
       >
         {/* Theme wraps App — so every page gets CSS variables */}
