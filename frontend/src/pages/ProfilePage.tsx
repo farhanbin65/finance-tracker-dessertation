@@ -40,6 +40,15 @@ export default function ProfilePage() {
   const userName   = localStorage.getItem('fs_name')  || 'Your Account'
   const userEmail  = localStorage.getItem('fs_email') || ''
   const userAvatar = null
+  const isAdmin    = (() => {
+    try {
+      const token = localStorage.getItem('fs_token') || ''
+      const payload = JSON.parse(atob(token.split('.')[1] || 'e30='))
+      return payload.role === 'admin'
+    } catch {
+      return false
+    }
+  })()
   const initials   = userName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
   // ── Sign out ───────────────────────────────────────────────────
@@ -64,7 +73,7 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error()
       const data = await res.json()
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url  = URL.createObjectURL(blob)
+      const url  = URL.createObjectURL(blob)  
       const a    = document.createElement('a')
       a.href = url; a.download = 'finsight-my-data.json'; a.click()
       URL.revokeObjectURL(url)
@@ -291,6 +300,12 @@ export default function ProfilePage() {
       {/* ── Account ──────────────────────────────────────────── */}
       <SectionLabel icon="ti-user" label="Account" />
       <div style={cardStyle}>
+        {/* Only show if admin */}
+        {isAdmin && (
+          <SecItem icon="ti-shield" label="Admin panel" onClick={() => navigate('/admin')}>
+            <i className="ti ti-arrow-right" style={{ color: 'var(--text-muted)', fontSize: 16 }} aria-hidden="true" />
+          </SecItem>
+        )}
         <SecItem icon="ti-bell" label="Notifications">
           <i className="ti ti-arrow-right" style={{ color: 'var(--text-muted)', fontSize: 16 }} aria-hidden="true" />
         </SecItem>

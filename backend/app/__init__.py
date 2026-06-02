@@ -44,11 +44,13 @@ def create_app() -> Flask:
     from app.api.budgets import budgets_bp
     from app.api.goals import goals_bp
     from app.api.chat import chat_bp
+    from app.api.admin import admin_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(transactions_bp)
     app.register_blueprint(budgets_bp)
     app.register_blueprint(goals_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
     # ── Health Check Endpoint ──────────────────────────────
     @app.route("/health", methods=["GET"])
     def health():
