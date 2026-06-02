@@ -40,4 +40,8 @@ class Config:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = "llama-3.1-8b-instant"
 
+    # ── Auth0 ───────────────────────────────────────────────
+    AUTH0_DOMAIN: str = os.getenv("AUTH0_DOMAIN", "dev-gomvag3j4o0jyjxx.us.auth0.com")
+    AUTH0_CLIENT_ID: str = os.getenv("AUTH0_CLIENT_ID", "Y4ZhSTH65JR8vzyZE4SH9NbKjQrjpPIg")
+
 config = Config()
