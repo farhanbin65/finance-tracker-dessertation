@@ -9,6 +9,7 @@ import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { useToast } from '../components/ui/Toast'
+import { getAuthToken } from '../utils/getAuthToken'
 
 const PALETTES = [
   { id: 'purple', color: '#7c5cfc', label: 'Violet' },
@@ -28,7 +29,7 @@ const cardStyle: React.CSSProperties = {
 }
 
 export default function ProfilePage() {
-  const { user, logout }                   = useAuth0()
+  const { getIdTokenClaims, user, logout } = useAuth0()
   const navigate                           = useNavigate()
   const { mode, palette, setMode, setPalette } = useTheme()
   const { showToast }                      = useToast()
@@ -58,7 +59,7 @@ export default function ProfilePage() {
   async function handleDataExport() {
     try {
       setExporting(true)
-      const token = localStorage.getItem('fs_token')
+      const token = await getAuthToken(getIdTokenClaims)
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/auth/export`,
         { headers: { Authorization: `Bearer ${token}` } }

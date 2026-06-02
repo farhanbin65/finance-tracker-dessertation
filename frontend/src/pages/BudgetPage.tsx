@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useToast } from '../components/ui/Toast'
+import { getAuthToken } from '../utils/getAuthToken'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -112,7 +113,7 @@ function ConfirmDialog({ title, message, onConfirm, onCancel }: {
 // Main Page
 // ══════════════════════════════════════════════════════════════════
 export default function BudgetPage() {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
 
   const [categories, setCategories] = useState<BudgetCategory[]>([])
@@ -126,8 +127,7 @@ export default function BudgetPage() {
   useEffect(() => { fetchBudget() }, [])
 
   async function getToken() {
-    try { return localStorage.getItem('fs_token') || await getAccessTokenSilently() }
-    catch { return localStorage.getItem('fs_token') || '' }
+    return getAuthToken(getIdTokenClaims)
   }
 
   async function fetchBudget() {
@@ -544,7 +544,7 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
   mode: 'add' | 'edit'; existing?: BudgetCategory
   onClose: () => void; onSaved: () => void
 }) {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
   const [form, setForm]       = useState({
     category: existing?.category ?? 'Food',
@@ -561,7 +561,7 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
     if (Number(form.limit) <= 0)                  return setErr('Limit must be greater than zero.')
     setErr(''); setSubmitting(true)
     try {
-      const token  = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const token  = await getAuthToken(getIdTokenClaims)
       const url    = mode === 'edit' && existing
         ? `${API_URL}/api/budgets/${existing.id}`
         : `${API_URL}/api/budgets`

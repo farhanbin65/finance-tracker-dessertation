@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate } from 'react-router-dom'
+import { getAuthToken } from '../utils/getAuthToken'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -166,7 +167,7 @@ function Card({ children, style = {} }: { children: React.ReactNode; style?: Rea
 
 // ══════════════════════════════════════════════════════════════════
 export default function DashboardPage() {
-  const { getAccessTokenSilently, user } = useAuth0()
+  const { getIdTokenClaims, user } = useAuth0()
   const navigate   = useNavigate()
   const isDesktop  = useIsDesktop()
 
@@ -186,8 +187,7 @@ export default function DashboardPage() {
   useEffect(() => { fetchDashboard() }, [])
 
   async function getToken() {
-    try { return localStorage.getItem('fs_token') || await getAccessTokenSilently() }
-    catch { return localStorage.getItem('fs_token') || '' }
+    return getAuthToken(getIdTokenClaims)
   }
 
   async function fetchDashboard() {

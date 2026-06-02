@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useToast } from '../components/ui/Toast'
+import { getAuthToken } from '../utils/getAuthToken'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -139,7 +140,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
 // Main Page
 // ══════════════════════════════════════════════════════════════════
 export default function TransactionsPage() {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -161,8 +162,7 @@ export default function TransactionsPage() {
   }, [showSearch])
 
   async function getToken() {
-    try { return localStorage.getItem('fs_token') || await getAccessTokenSilently() }
-    catch { return localStorage.getItem('fs_token') || '' }
+    return getAuthToken(getIdTokenClaims)
   }
 
   async function fetchTransactions() {
@@ -549,7 +549,7 @@ const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Subscript
 function AddTransactionModal({ onClose, onAdded }: {
   onClose: () => void; onAdded: () => void
 }) {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
   const [form, setForm] = useState({
     title: '', amount: '',
@@ -570,7 +570,7 @@ function AddTransactionModal({ onClose, onAdded }: {
     if (Number(form.amount) <= 0)                   return setErr('Amount must be greater than zero.')
     setErr(''); setSubmitting(true)
     try {
-      const token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const token = await getAuthToken(getIdTokenClaims)
       const res = await fetch(`${API_URL}/api/transactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -726,7 +726,7 @@ function AddTransactionModal({ onClose, onAdded }: {
 function EditTransactionModal({ tx, onClose, onSaved }: {
   tx: Transaction; onClose: () => void; onSaved: () => void
 }) {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
 
   const [form, setForm] = useState({
@@ -750,7 +750,7 @@ function EditTransactionModal({ tx, onClose, onSaved }: {
     setErr('')
     setSubmitting(true)
     try {
-      const token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const token = await getAuthToken(getIdTokenClaims)
       const res = await fetch(`${API_URL}/api/transactions/${tx.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

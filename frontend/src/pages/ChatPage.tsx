@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { getAuthToken } from '../utils/getAuthToken'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -126,7 +127,7 @@ function ClearConfirmDialog({ onConfirm, onCancel }: {
 
 // ══════════════════════════════════════════════════════════════════
 export default function ChatPage() {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
 
   // ✅ Read name from localStorage — not hardcoded
   const userName  = localStorage.getItem('fs_name') || 'there'
@@ -157,8 +158,7 @@ export default function ChatPage() {
   }, [messages, loading])
 
   async function getToken() {
-    try { return localStorage.getItem('fs_token') || await getAccessTokenSilently() }
-    catch { return localStorage.getItem('fs_token') || '' }
+    return getAuthToken(getIdTokenClaims)
   }
 
   async function fetchContext() {

@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useToast } from '../components/ui/Toast'
+import { getAuthToken } from '../utils/getAuthToken'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -219,7 +220,7 @@ function SubmitBtn({ label, loading, onClick }: {
 // Main Page
 // ══════════════════════════════════════════════════════════════════
 export default function GoalsPage() {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
 
   const [goals, setGoals]               = useState<SavingsGoal[]>([])
@@ -233,8 +234,7 @@ export default function GoalsPage() {
   useEffect(() => { fetchGoals() }, [])
 
   async function getToken() {
-    try { return localStorage.getItem('fs_token') || await getAccessTokenSilently() }
-    catch { return localStorage.getItem('fs_token') || '' }
+    return getAuthToken(getIdTokenClaims)
   }
 
   async function fetchGoals() {
@@ -631,7 +631,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
   mode: 'add' | 'edit'; existing?: SavingsGoal
   onClose: () => void; onSaved: () => void
 }) {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
   const [form, setForm] = useState({
     name:          existing?.name ?? '',
@@ -652,7 +652,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
     if (!form.target_date)    return setErr('Target date is required.')
     setErr(''); setSubmitting(true)
     try {
-      const token  = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const token  = await getAuthToken(getIdTokenClaims)
       const url    = mode === 'edit' && existing
         ? `${API_URL}/api/goals/${existing.id}` : `${API_URL}/api/goals`
       const res = await fetch(url, {
@@ -737,7 +737,7 @@ function GoalModal({ mode, existing, onClose, onSaved }: {
 function DepositModal({ goal, onClose, onDeposited }: {
   goal: SavingsGoal; onClose: () => void; onDeposited: () => void
 }) {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdTokenClaims } = useAuth0()
   const { showToast } = useToast()
   const [amount, setAmount]         = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -756,7 +756,7 @@ function DepositModal({ goal, onClose, onDeposited }: {
       return setErr('Enter a valid amount greater than zero.')
     setErr(''); setSubmitting(true)
     try {
-      const token = localStorage.getItem('fs_token') || await getAccessTokenSilently()
+      const token = await getAuthToken(getIdTokenClaims)
       const res = await fetch(`${API_URL}/api/goals/${goal.id}/deposit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
