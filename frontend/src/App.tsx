@@ -14,8 +14,9 @@ import BudgetPage       from './pages/BudgetPage'
 import GoalsPage        from './pages/GoalsPage'
 import ChatPage         from './pages/ChatPage'
 import ProfilePage      from './pages/ProfilePage'
-import AdminPage        from './pages/AdminPage'
-import AdminUserPage from './pages/AdminUserPage'
+import AdminPage         from './pages/AdminPage'
+import AdminUserPage     from './pages/AdminUserPage'
+import AdminSettingsPage from './pages/AdminSettingsPage'
 
 // ── Private route guard — JWT only, no Auth0 ──────────────────────
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -84,11 +85,28 @@ function AdminRoute() {
           }}>Admin</span>
         </div>
 
-        {/* Right — admin name + logout */}
+        {/* Right — admin name + settings + logout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             {localStorage.getItem('fs_name') || 'Admin'}
           </span>
+
+          {/* Settings button */}
+          <button
+            onClick={() => window.location.href = '/admin/settings'}
+            title="Settings"
+            style={{
+              width: 34, height: 34, borderRadius: 8,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <i className="ti ti-settings" style={{ fontSize: 15 }} aria-hidden="true" />
+          </button>
+
           <button
             onClick={() => {
               localStorage.clear()
@@ -129,8 +147,9 @@ export default function App() {
 
       {/* ── Admin routes — own layout, no BottomNav ───────── */}
       <Route element={<AdminRoute />}>
-        <Route path="/admin"               element={<AdminPage />} />
-        <Route path="/admin/users/:userId" element={<AdminUserPage />} />
+        <Route path="/admin"                element={<AdminPage />} />
+        <Route path="/admin/users/:userId"  element={<AdminUserPage />} />
+        <Route path="/admin/settings"       element={<AdminSettingsPage />} />
       </Route>
 
       {/* ── User protected routes — full AppLayout ────────── */}
