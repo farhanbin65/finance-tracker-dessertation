@@ -278,3 +278,71 @@ def get_all_transactions():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@admin_bp.route("/charts", methods=["GET"])
+@require_admin
+def get_platform_charts():
+    """
+    Returns platform-wide chart data combining all users.
+    - Spending by category (donut chart)
+    - Monthly income vs expenses across all users (bar chart)
+    """
+    try:
+        # ── Spending by category (all users, all time) ──
+        cat_pipeline = [
+            {"$match": {"type": "expense"}},
+            {"$group": {
+                "_id":   "$category",
+                "total": {"$sum": "$amount"}
+            }},
+            {"$sort": {"total": -1}}
+        ]
+        cat_data = [
+            {"name": doc["_id"], "value": round(doc["total"], 2)}
+            for doc in db.transactions.aggregate(cat_pipeline)
+        ]
+
+        # ── Monthly income vs expenses (last 6 months) ──
+        from datetime import timedelta
+        six_months_ago = datetime.now(timezone.utc) - timedelta(days=180)
+
+        monthly_pipeline = [
+            {"$match": {"date": {"$gte": six_months_ago}}},
+            {"$group": {
+                "_id": {
+                    "year":  {"$year":  "$date"},
+                    "month": {"$month": "$date"},
+                    "type":  "$type"
+                },
+                "total": {"$sum": "$amount"}
+            }},
+            {"$sort": {"_id.year": 1, "_id.month": 1}}
+        ]
+
+        # Build month map
+        month_map: dict = {}
+        for doc in db.transactions.aggregate(monthly_pipeline):
+            yr  = doc["_id"]["year"]
+            mo  = doc["_id"]["month"]
+            key = f"{yr}-{mo:02d}"
+            if key not in month_map:
+                import calendar
+                month_map[key] = {
+                    "month":    calendar.month_abbr[mo] + f" {str(yr)[2:]}",
+                    "income":   0,
+                    "expenses": 0,
+                }
+            if doc["_id"]["type"] == "income":
+                month_map[key]["income"]   = round(doc["total"], 2)
+            else:
+                month_map[key]["expenses"] = round(doc["total"], 2)
+
+        monthly_data = list(month_map.values())
+
+        return jsonify({
+            "by_category": cat_data,
+            "monthly":     monthly_data,
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

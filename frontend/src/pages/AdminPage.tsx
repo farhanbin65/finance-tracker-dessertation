@@ -7,8 +7,19 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAuthToken } from '../utils/getAuthToken'
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
+} from 'recharts'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
+
+const CAT_COLORS: Record<string, string> = {
+  Food: '#ff9f43', Transport: '#0ea5e9', Shopping: '#7c5cfc',
+  Rent: '#a78bfa', Subscriptions: '#ff4f64', Entertainment: '#f0b429',
+  Utilities: '#34d399', Health: '#22c87a', Other: '#8b90a4',
+}
+const CHART_COLORS = ['#7c5cfc','#ff9f43','#0ea5e9','#22c87a','#ff4f64','#f0b429','#a78bfa','#34d399']
 
 interface PlatformStats {
   total_users: number
@@ -31,6 +42,11 @@ interface AdminUser {
   budget_count: number
   goal_count: number
   is_banned?: boolean
+}
+
+interface ChartData {
+  by_category: { name: string; value: number }[]
+  monthly:     { month: string; income: number; expenses: number }[]
 }
 
 function Shimmer({ height = 60, radius = 12 }: { height?: number; radius?: number }) {
@@ -77,6 +93,7 @@ export default function AdminPage() {
   const [users, setUsers]   = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [charts, setCharts] = useState<ChartData | null>(null)
 
   // Guard — admin only
   useEffect(() => {
@@ -94,13 +111,17 @@ export default function AdminPage() {
       setLoading(true)
       const token = await getAuthToken()
       const h = { Authorization: `Bearer ${token}` }
-      const [sRes, uRes] = await Promise.all([
-        fetch(`${API_URL}/api/admin/stats`, { headers: h }),
-        fetch(`${API_URL}/api/admin/users`, { headers: h }),
+      const [sRes, uRes, cRes] = await Promise.all([
+        fetch(`${API_URL}/api/admin/stats`,  { headers: h }),
+        fetch(`${API_URL}/api/admin/users`,  { headers: h }),
+        fetch(`${API_URL}/api/admin/charts`, { headers: h }),
       ])
-      const [sData, uData] = await Promise.all([sRes.json(), uRes.json()])
+      const [sData, uData, cData] = await Promise.all([
+        sRes.json(), uRes.json(), cRes.json(),
+      ])
       setStats(sData)
       setUsers(uData.users || [])
+      setCharts(cData)
     } catch (e) {
       console.error(e)
     } finally {
@@ -166,6 +187,122 @@ export default function AdminPage() {
           <StatCard label="Goals"          value={stats.total_goals}        icon="ti-target"          color="#a78bfa"        />
           <StatCard label="Platform income"  value={`£${(stats.total_income   || 0).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`} icon="ti-trending-up"   color="var(--green)" />
           <StatCard label="Platform spent"   value={`£${(stats.total_expenses || 0).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`} icon="ti-trending-down" color="var(--red)"   />
+        </div>
+      )}
+
+      {/* ── Platform charts ───────────────────────────────── */}
+      {charts && (
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          gap: 16, marginBottom: 28,
+        }}>
+
+          {/* Donut — spending by category */}
+          <div style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 18, padding: 18,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <i className="ti ti-chart-donut" style={{ fontSize: 16, color: 'var(--accent)' }} aria-hidden="true" />
+              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Platform spending by category
+              </p>
+            </div>
+
+            {charts.by_category.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>
+                No data yet
+              </p>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={charts.by_category}
+                      cx="50%" cy="50%"
+                      innerRadius={55} outerRadius={85}
+                      dataKey="value" paddingAngle={2}
+                    >
+                      {charts.by_category.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={CAT_COLORS[entry.name] || CHART_COLORS[i % CHART_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number) => [`£${v.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`, '']}
+                      contentStyle={{
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 8, fontSize: 12,
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                {/* Legend */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                  {charts.by_category.slice(0, 5).map((d, i) => (
+                    <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                        background: CAT_COLORS[d.name] || CHART_COLORS[i % CHART_COLORS.length],
+                      }} />
+                      <span style={{ fontSize: 12, flex: 1, color: 'var(--text-secondary)' }}>
+                        {d.name}
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        £{d.value.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Bar — monthly income vs expenses */}
+          <div style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 18, padding: 18,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <i className="ti ti-chart-bar" style={{ fontSize: 16, color: 'var(--accent)' }} aria-hidden="true" />
+              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Platform monthly income vs expenses
+              </p>
+            </div>
+
+            {charts.monthly.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>
+                No data yet
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={charts.monthly} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                    tickFormatter={v => `£${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => [`£${v.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`, '']}
+                    contentStyle={{
+                      background: 'var(--bg-card)', border: '1px solid var(--border)',
+                      borderRadius: 8, fontSize: 12,
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="income"   fill="#22c87a" radius={[4,4,0,0]} name="Income"   />
+                  <Bar dataKey="expenses" fill="#ff4f64" radius={[4,4,0,0]} name="Expenses" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       )}
 
