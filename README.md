@@ -1,5 +1,7 @@
 # FinSight — Personal Finance Intelligence Platform
 
+> Final Year Dissertation · BSc Computing Systems · Ulster University · 2026
+
 ![CI](https://github.com/farhanbin65/finance-tracker-dessertation/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
@@ -13,22 +15,8 @@
 
 A production-grade personal finance web application built as a university dissertation project. FinSight combines secure transaction tracking, intelligent budget planning, savings goal management, and an AI-powered financial assistant — all within a modern, accessible, mobile-first interface.
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [System Architecture](#system-architecture)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [API Reference](#api-reference)
-- [Security](#security)
-- [Dissertation Context](#dissertation-context)
-- [Roadmap](#roadmap)
-- [License](#license)
+## 🚀 Live Demo
+[finance-tracker-five-umber.vercel.app](https://finance-tracker-five-umber.vercel.app)
 
 ---
 
@@ -53,16 +41,6 @@ The project was designed and built to demonstrate full-stack engineering compete
 | AI Financial Assistant | Groq-powered Llama 3.1 chatbot with personal financial context |
 | Profile and Security Center | Biometric toggle, fraud alerts, GDPR data export, session management |
 | Theme System | Five colour palettes with dark and light mode, persisted to localStorage |
-
-### Security Features
-
-- AES-256 data encryption in transit
-- Bcrypt password hashing with cost factor 12
-- JWT access tokens (1 hour) and refresh tokens (7 days)
-- Rate limiting on all authentication endpoints
-- CORS restricted to known frontend origins
-- GDPR-compliant data export and account deletion
-- Auth0 integration for enterprise-grade OAuth flows
 
 ---
 
@@ -286,64 +264,6 @@ classDiagram
 | Render | Backend hosting with auto-deploy |
 | GitHub Actions | Automated testing and deployment pipeline |
 
----
-
-## Project Structure
-
-```
-finance-tracker-dissertation/
-│
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── auth.py           # Register, login, refresh
-│   │   │   ├── transactions.py   # CRUD + category filtering
-│   │   │   ├── budgets.py        # Monthly budget management
-│   │   │   ├── goals.py          # Savings goals + deposits
-│   │   │   └── chat.py           # AI chat with Groq
-│   │   ├── core/
-│   │   │   ├── config.py         # Environment configuration
-│   │   │   ├── security.py       # JWT + auth decorators
-│   │   │   └── logging.py        # Structured JSON logging
-│   │   ├── db/
-│   │   │   └── mongo.py          # MongoDB connection + ping
-│   │   ├── models/
-│   │   │   ├── transaction.py    # Pydantic transaction schema
-│   │   │   ├── budget.py         # Pydantic budget schema
-│   │   │   ├── goal.py           # Pydantic goal schema
-│   │   │   └── user.py           # Pydantic user schema
-│   │   └── main.py               # App entrypoint
-│   ├── .env.example
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── LoginPage.tsx
-│   │   │   ├── TransactionsPage.tsx
-│   │   │   ├── BudgetPage.tsx
-│   │   │   ├── GoalsPage.tsx
-│   │   │   ├── ChatPage.tsx
-│   │   │   └── ProfilePage.tsx
-│   │   ├── components/
-│   │   │   └── layout/
-│   │   │       ├── AppLayout.tsx
-│   │   │       ├── TopBar.tsx
-│   │   │       └── BottomNav.tsx
-│   │   ├── contexts/
-│   │   │   └── ThemeContext.tsx
-│   │   ├── App.tsx
-│   │   ├── main.tsx
-│   │   └── index.css
-│   ├── .env.example
-│   ├── vercel.json
-│   └── package.json
-│
-└── .github/
-    └── workflows/
-        └── deploy.yml
-```
 
 ---
 
@@ -435,55 +355,6 @@ VITE_AUTH0_CLIENT_ID=your-client-id
 VITE_AUTH0_CALLBACK_URL=http://localhost:5173/callback
 VITE_API_URL=http://localhost:5000
 ```
-
----
-
-## API Reference
-
-All protected endpoints require `Authorization: Bearer <token>` header.
-
-### Authentication
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login and receive tokens |
-| POST | `/api/auth/refresh` | Refresh access token |
-
-### Transactions
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/transactions` | List all transactions |
-| POST | `/api/transactions` | Create transaction |
-| PUT | `/api/transactions/:id` | Update transaction |
-| DELETE | `/api/transactions/:id` | Delete transaction |
-| GET | `/api/transactions/summary/monthly` | Monthly summary |
-
-### Budgets
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/budgets` | Get current month budgets |
-| POST | `/api/budgets` | Create budget category |
-| PUT | `/api/budgets/:id` | Update budget limit |
-| DELETE | `/api/budgets/:id` | Delete budget category |
-
-### Goals
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/goals` | List all savings goals |
-| POST | `/api/goals` | Create savings goal |
-| POST | `/api/goals/:id/deposit` | Add money to goal |
-| PUT | `/api/goals/:id` | Update goal |
-| DELETE | `/api/goals/:id` | Delete goal |
-
-### AI Chat
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/chat` | Send message to AI assistant |
 
 ---
 
