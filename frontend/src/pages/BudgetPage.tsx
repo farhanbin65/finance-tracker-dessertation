@@ -42,14 +42,7 @@ function getStatus(spent: number, limit: number) {
   return              { label: 'On track',     color: 'var(--green)',  barColor: 'var(--green)',  bg: 'rgba(34,200,122,0.1)' }
 }
 
-// ── Demo fallback ──────────────────────────────────────────────────
-const DEMO: BudgetCategory[] = [
-  { id: '1', category: 'Food',          limit: 450, spent: 320, month: 5, year: 2026, alert_threshold: 80 },
-  { id: '2', category: 'Transport',     limit: 200, spent: 180, month: 5, year: 2026, alert_threshold: 80 },
-  { id: '3', category: 'Entertainment', limit: 200, spent: 215, month: 5, year: 2026, alert_threshold: 80 },
-  { id: '4', category: 'Shopping',      limit: 500, spent: 420, month: 5, year: 2026, alert_threshold: 80 },
-  { id: '5', category: 'Subscriptions', limit: 150, spent: 150, month: 5, year: 2026, alert_threshold: 80 },
-]
+
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Subscriptions', 'Health', 'Education', 'Utilities', 'Rent', 'Other']
 
 // ── Shimmer block ──────────────────────────────────────────────────
@@ -138,25 +131,24 @@ export default function BudgetPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
 
-      if (data.budgets?.length) {
-        setCategories(data.budgets)
-        const totalAllocated = data.budgets.reduce((s: number, b: BudgetCategory) => s + b.limit, 0)
-        const totalSpent     = data.budgets.reduce((s: number, b: BudgetCategory) => s + b.spent, 0)
+      const budgets = data.budgets || []
+      setCategories(budgets)
+      if (budgets.length > 0) {
+        const totalAllocated = budgets.reduce((s: number, b: BudgetCategory) => s + b.limit, 0)
+        const totalSpent     = budgets.reduce((s: number, b: BudgetCategory) => s + b.spent, 0)
         setSummary({
           total_allocated: totalAllocated,
-          total_spent: totalSpent,
-          percentage: totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0,
+          total_spent:     totalSpent,
+          percentage:      totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0,
         })
       } else {
-        setCategories(DEMO)
-        setSummary({ total_allocated: 1500, total_spent: 1285, percentage: 86 })
+        setSummary(null)
       }
-    } catch {
-      setCategories(DEMO)
-      setSummary({ total_allocated: 1500, total_spent: 1285, percentage: 86 })
-      setError('Using demo data — connect your backend to see real budgets.')
-      showToast('Something went wrong. Please try again.', 'error')
-    } finally {
+      } catch {
+      setCategories([])
+      setSummary(null)
+      setError('Could not load budgets. Please refresh.')
+    }finally {
       setLoading(false)
     }
   }
