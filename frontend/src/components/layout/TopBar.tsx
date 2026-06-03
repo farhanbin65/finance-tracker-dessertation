@@ -16,10 +16,23 @@ interface TopBarProps {
   backPath?: string;
 }
 
+// ── Check if current user is admin from JWT ────────────────────────
+function isAdmin(): boolean {
+  try {
+    const token = localStorage.getItem('fs_token')
+    if (!token) return false
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.role === 'admin'
+  } catch {
+    return false
+  }
+}
+
 export default function TopBar({ title, showBack, backPath }: TopBarProps) {
   const navigate = useNavigate();
   const { mode, palette, setMode, setPalette } = useTheme();
   const [open, setOpen] = useState(false);
+  const admin = isAdmin();
 
   return (
     <header style={{
@@ -41,11 +54,12 @@ export default function TopBar({ title, showBack, backPath }: TopBarProps) {
           </button>
         ) : (
           <div style={{
-            width:28, height:28,
-            background:'var(--accent)', borderRadius:8,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:14,
-          }}>🛡</div>
+            width: 28, height: 28,
+            background: 'var(--accent)', borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <i className="ti ti-shield" style={{ fontSize: 14, color: '#fff' }} aria-hidden="true" />
+          </div>
         )}
         {title ? (
           <span style={{ fontFamily:'var(--font-main)', fontSize:17, fontWeight:700 }}>
@@ -60,17 +74,42 @@ export default function TopBar({ title, showBack, backPath }: TopBarProps) {
 
       {/* Right icons */}
       <div style={{ display:'flex', gap:8, alignItems:'center', position:'relative' }}>
+
+        {/* Admin button — only visible to admin users */}
+        {admin && (
+          <button
+            onClick={() => navigate('/admin')}
+            title="Admin panel"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              height: 36, padding: '0 12px',
+              background: 'rgba(255,79,100,0.1)',
+              border: '1px solid var(--red)',
+              borderRadius: 10, cursor: 'pointer',
+              color: 'var(--red)', fontSize: 12, fontWeight: 700,
+              letterSpacing: '.03em',
+            }}
+          >
+            <i className="ti ti-shield-lock" style={{ fontSize: 14 }} aria-hidden="true" />
+            Admin
+          </button>
+        )}
+
         <IconBtn icon="ti-palette" onClick={() => setOpen(o => !o)} />
         <IconBtn icon="ti-user-circle" onClick={() => navigate('/safety')} />
 
         {/* Theme panel */}
         {open && (
-          <div style={{
-            position:'absolute', top:44, right:0,
-            background:'var(--bg-card)',
-            border:'1px solid var(--border)',
-            borderRadius:14, padding:16, width:220, zIndex:100,
-          }}>
+          <div
+            style={{
+              position:'absolute', top:44, right:0,
+              background:'var(--bg-card)',
+              border:'1px solid var(--border)',
+              borderRadius:14, padding:16, width:220, zIndex:100,
+            }}
+            // Close when clicking outside
+            onMouseLeave={() => setOpen(false)}
+          >
             <p style={{ fontSize:11, fontWeight:700, letterSpacing:'.06em',
               textTransform:'uppercase', color:'var(--text-muted)',
               fontFamily:'var(--font-main)', marginBottom:12 }}>
