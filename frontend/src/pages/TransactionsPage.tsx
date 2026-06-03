@@ -152,6 +152,47 @@ export default function TransactionsPage() {
   const [confirmId, setConfirmId]       = useState<string | null>(null)
   const searchRef                       = useRef<HTMLInputElement>(null)
 
+  // ── CSV Export ────────────────────────────────────────────────
+  function exportToCSV() {
+    if (filtered.length === 0) {
+      showToast('No transactions to export', 'warning')
+      return
+    }
+
+    // Build CSV content
+    const headers = ['Date', 'Title', 'Type', 'Category', 'Amount (£)', 'Notes']
+    const rows = filtered.map(tx => [
+      new Date(tx.date).toLocaleDateString('en-GB'),
+      `"${tx.title.replace(/"/g, '""')}"`,        // escape quotes
+      tx.type,
+      tx.category,
+      tx.type === 'income' ? tx.amount.toFixed(2) : `-${tx.amount.toFixed(2)}`,
+      `"${(tx.notes || '').replace(/"/g, '""')}"`,
+    ])
+
+    const csv = [
+      // File header with export metadata
+      `# FinSight Transaction Export`,
+      `# Exported: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+      `# Filter: ${filter} · Total records: ${filtered.length}`,
+      `# Income: £${totalIncome.toFixed(2)} · Spent: £${totalExpense.toFixed(2)}`,
+      ``,
+      headers.join(','),
+      ...rows.map(r => r.join(',')),
+    ].join('\n')
+
+    // Trigger download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `finsight-transactions-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    showToast(`Exported ${filtered.length} transactions`, 'success')
+  }
+
   useEffect(() => { fetchTransactions() }, [])
 
   // Auto-focus search when shown
@@ -263,6 +304,33 @@ export default function TransactionsPage() {
             >{f}</button>
           ))}
         </div>
+
+        {/* CSV Export button */}
+        <button
+          onClick={exportToCSV}
+          aria-label="Export transactions to CSV"
+          title="Export to CSV"
+          style={{
+            width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all .2s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(34,200,122,0.1)'
+            e.currentTarget.style.borderColor = 'var(--green)'
+            e.currentTarget.style.color = 'var(--green)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'var(--bg-card)'
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--text-muted)'
+          }}
+        >
+          <i className="ti ti-table-export" style={{ fontSize: 17 }} aria-hidden="true" />
+        </button>
       </div>
 
       {/* ── Search input (animated) ───────────────────────────── */}
