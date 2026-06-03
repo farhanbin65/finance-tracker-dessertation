@@ -75,26 +75,6 @@ export default function TopBar({ title, showBack, backPath }: TopBarProps) {
       {/* Right icons */}
       <div style={{ display:'flex', gap:8, alignItems:'center', position:'relative' }}>
 
-        {/* Admin button — only visible to admin users */}
-        {admin && (
-          <button
-            onClick={() => navigate('/admin')}
-            title="Admin panel"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              height: 36, padding: '0 12px',
-              background: 'rgba(255,79,100,0.1)',
-              border: '1px solid var(--red)',
-              borderRadius: 10, cursor: 'pointer',
-              color: 'var(--red)', fontSize: 12, fontWeight: 700,
-              letterSpacing: '.03em',
-            }}
-          >
-            <i className="ti ti-shield-lock" style={{ fontSize: 14 }} aria-hidden="true" />
-            Admin
-          </button>
-        )}
-
         <IconBtn icon="ti-palette" onClick={() => setOpen(o => !o)} />
         <IconBtn icon="ti-user-circle" onClick={() => navigate('/safety')} />
 

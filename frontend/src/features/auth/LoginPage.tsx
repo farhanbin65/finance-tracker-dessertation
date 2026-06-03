@@ -44,7 +44,9 @@ export default function LoginPage() {
       localStorage.setItem('fs_user',          JSON.stringify(data.user))
       localStorage.setItem('fs_name',          data.user?.full_name || '')
       localStorage.setItem('fs_email',         data.user?.email || '')
-      navigate('/dashboard')
+      // Admin goes to admin panel, regular users go to dashboard
+      const role = data.user?.role || 'user'
+      navigate(role === 'admin' ? '/admin' : '/dashboard')
     } catch {
       setError('Network error. Please try again.')
     } finally {
