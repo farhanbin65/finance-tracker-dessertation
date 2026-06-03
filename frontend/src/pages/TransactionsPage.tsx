@@ -159,34 +159,50 @@ export default function TransactionsPage() {
       return
     }
 
-    // Build CSV content
-    const headers = ['Date', 'Title', 'Type', 'Category', 'Amount (£)', 'Notes']
-    const rows = filtered.map(tx => [
-      new Date(tx.date).toLocaleDateString('en-GB'),
-      `"${tx.title.replace(/"/g, '""')}"`,        // escape quotes
-      tx.type,
-      tx.category,
-      tx.type === 'income' ? tx.amount.toFixed(2) : `-${tx.amount.toFixed(2)}`,
-      `"${(tx.notes || '').replace(/"/g, '""')}"`,
-    ])
+    const headers = ['Date', 'Title', 'Type', 'Category', 'Amount', 'Notes']
+    const rows = filtered.map(tx => {
+      // Format date as DD/MM/YYYY — Excel recognises this as a date
+      const d   = new Date(tx.date)
+      const day = String(d.getDate()).padStart(2, '0')
+      const mon = String(d.getMonth() + 1).padStart(2, '0')
+      const yr  = d.getFullYear()
+      const dateStr = `${day}/${mon}/${yr}`
 
-    const csv = [
-      // File header with export metadata
+      // Amount: positive for income, negative for expense
+      const amount = tx.type === 'income'
+        ? tx.amount.toFixed(2)
+        : `-${tx.amount.toFixed(2)}`
+
+      // Escape any quotes inside text fields
+      const safe = (s: string) => `"${(s || '').replace(/"/g, '""')}"`
+
+      return [
+        dateStr,
+        safe(tx.title),
+        tx.type,
+        tx.category,
+        amount,
+        safe(tx.notes || ''),
+      ].join(',')
+    })
+
+    const csvLines = [
       `# FinSight Transaction Export`,
       `# Exported: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`,
-      `# Filter: ${filter} · Total records: ${filtered.length}`,
-      `# Income: £${totalIncome.toFixed(2)} · Spent: £${totalExpense.toFixed(2)}`,
+      `# Filter: ${filter} | Records: ${filtered.length}`,
+      `# Income: ${totalIncome.toFixed(2)} | Spent: ${totalExpense.toFixed(2)}`,
       ``,
       headers.join(','),
-      ...rows.map(r => r.join(',')),
-    ].join('\n')
+      ...rows,
+    ].join('\r\n')  // Windows line endings — Excel prefers \r\n
 
-    // Trigger download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    // ✅ BOM prefix fixes £ and special chars in Excel
+    const BOM  = '\uFEFF'
+    const blob = new Blob([BOM + csvLines], { type: 'text/csv;charset=utf-8;' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href     = url
-    a.download = `finsight-transactions-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `finsight-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
 
