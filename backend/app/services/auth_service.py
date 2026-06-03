@@ -90,6 +90,9 @@ def login_user(data: UserLoginRequest) -> dict:
     # Step 1: Find user (always lowercase email)
     user = db.users.find_one({"email": data.email.lower()})
 
+    if user and user.get("is_banned"):
+        raise AuthError("This account has been suspended. Contact support.", 403)
+
     # Step 2: Verify — same error message whether user not found or wrong password
     # (prevents user enumeration attacks)
     if not user or not verify_password(data.password, user["password_hash"]):

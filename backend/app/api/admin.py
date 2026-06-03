@@ -8,6 +8,7 @@ Endpoints:
   GET  /api/admin/users         — all users list
   GET  /api/admin/users/:id     — single user detail + their data
   DELETE /api/admin/users/:id   — delete user and all their data
+    POST /api/admin/users/:id/ban — toggle a user's ban status
   GET  /api/admin/transactions  — all transactions across all users
 """
 
@@ -183,6 +184,43 @@ def delete_user(user_id: str):
 
         return jsonify({
             "message": f"User {user.get('email')} and all their data deleted successfully"
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/users/<user_id>/ban", methods=["POST"])
+@require_admin
+def ban_user(user_id: str):
+    """
+    Toggle ban status on a user account.
+    Banned users cannot login — checked in auth.py login route.
+    Cannot ban admin accounts.
+    """
+    try:
+        from flask import g as flask_g
+
+        if user_id == flask_g.current_user_id:
+            return jsonify({"error": "Cannot ban your own account"}), 400
+
+        user = db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        if user.get("role") == "admin":
+            return jsonify({"error": "Cannot ban an admin account"}), 403
+
+        # Toggle ban
+        new_status = not user.get("is_banned", False)
+        db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"is_banned": new_status}}
+        )
+
+        return jsonify({
+            "message": f"User {'banned' if new_status else 'unbanned'} successfully",
+            "is_banned": new_status
         }), 200
 
     except Exception as e:

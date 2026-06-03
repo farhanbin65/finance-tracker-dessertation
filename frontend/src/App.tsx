@@ -15,6 +15,7 @@ import GoalsPage        from './pages/GoalsPage'
 import ChatPage         from './pages/ChatPage'
 import ProfilePage      from './pages/ProfilePage'
 import AdminPage        from './pages/AdminPage'
+import AdminUserPage from './pages/AdminUserPage'
 
 // ── Private route guard — JWT only, no Auth0 ──────────────────────
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/insights"     element={<ChatPage />} />
         <Route path="/safety"       element={<ProfilePage />} />
         <Route path="/admin"        element={<AdminPage />} />
+        <Route path="/admin/users/:userId" element={<AdminUserPage />} />
       </Route>
 
       {/* Catch all */}

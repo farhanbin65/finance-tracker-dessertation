@@ -11,6 +11,7 @@ from app.services.auth_service import register_user, login_user, get_current_use
 from app.models.user import UserRegisterRequest, UserLoginRequest
 from app.core.security import require_auth
 from flask import g
+from app.db.mongo import get_db
 
 # Blueprint groups all auth routes under /api/auth
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -51,6 +52,12 @@ def login():
     """
     try:
         data = UserLoginRequest(**request.get_json(silent=True) or {})
+
+        db = get_db()
+        user = db.users.find_one({"email": data.email.lower()})
+        if user and user.get("is_banned"):
+            return jsonify({"error": "This account has been suspended. Contact support."}), 403
+
         result = login_user(data)
         return jsonify(result), 200
 
@@ -91,6 +98,9 @@ def auth0_login():
 
         # Find existing user or create new one
         user = db.users.find_one({"email": email})
+
+        if user and user.get("is_banned"):
+            return jsonify({"error": "This account has been suspended. Contact support."}), 403
 
         if not user:
             # First time Auth0 login — create account automatically
