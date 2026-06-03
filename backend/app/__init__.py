@@ -15,6 +15,7 @@ from app.db.mongo import get_db, ping_db
 
 
 
+
 def create_app() -> Flask:
     """
     Application factory — call this to get a configured Flask app.
@@ -45,12 +46,14 @@ def create_app() -> Flask:
     from app.api.goals import goals_bp
     from app.api.chat import chat_bp
     from app.api.admin import admin_bp
+    from app.api.insights import insights_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(transactions_bp)
     app.register_blueprint(budgets_bp)
     app.register_blueprint(goals_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
+    app.register_blueprint(insights_bp)
     # ── Health Check Endpoint ──────────────────────────────
     @app.route("/health", methods=["GET"])
     def health():
