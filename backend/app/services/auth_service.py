@@ -113,14 +113,18 @@ def login_user(data: UserLoginRequest) -> dict:
     _write_audit_log(user_id, "USER_LOGIN", {"email": data.email})
     logger.info("User logged in", extra={"user_id": user_id})
 
+    # Get role — defaults to 'user' if not set
+    role = user.get("role", "user")
+
     return {
-        "access_token": create_access_token(user_id, user["email"]),
+        "access_token": create_access_token(user_id, user["email"], role),
         "refresh_token": create_refresh_token(user_id),
         "user": {
-            "id": user_id,
+            "id":        user_id,
             "full_name": user["full_name"],
-            "email": user["email"],
-            "currency": user.get("currency", "GBP"),
+            "email":     user["email"],
+            "currency":  user.get("currency", "GBP"),
+            "role":      role,
         }
     }
 
