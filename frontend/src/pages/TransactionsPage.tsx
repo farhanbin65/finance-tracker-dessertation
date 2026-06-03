@@ -69,16 +69,6 @@ function applyFilter(txs: Transaction[], f: Filter): Transaction[] {
   return txs
 }
 
-// ── Demo fallback ──────────────────────────────────────────────────
-const DEMO: Transaction[] = [
-  { id: '1', title: 'Salary',       amount: 2800,  type: 'income',  category: 'Income',       date: new Date().toISOString(),                    created_at: new Date().toISOString(), notes: '' },
-  { id: '2', title: 'Tesco',        amount: 45.20, type: 'expense', category: 'Food',         date: new Date().toISOString(),                    created_at: new Date().toISOString(), notes: '' },
-  { id: '3', title: 'Uber',         amount: 12.50, type: 'expense', category: 'Transport',    date: new Date(Date.now() - 86400000).toISOString(), created_at: new Date().toISOString(), notes: '' },
-  { id: '4', title: 'Netflix',      amount: 15.99, type: 'expense', category: 'Subscriptions',date: new Date(Date.now() - 86400000).toISOString(), created_at: new Date().toISOString(), notes: '' },
-  { id: '5', title: 'Amazon',       amount: 89.00, type: 'expense', category: 'Shopping',     date: new Date(Date.now() - 864000000).toISOString(),created_at: new Date().toISOString(), notes: '' },
-  { id: '6', title: 'Costa Coffee', amount: 6.40,  type: 'expense', category: 'Food',         date: new Date(Date.now() - 864000000).toISOString(),created_at: new Date().toISOString(), notes: '' },
-]
-
 // ── Shimmer block ──────────────────────────────────────────────────
 function Shimmer({ height = 72, radius = 14 }: { height?: number; radius?: number }) {
   return (
@@ -473,10 +463,10 @@ export default function TransactionsPage() {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      setTransactions(data.transactions?.length ? data.transactions : DEMO)
+      setTransactions(data.transactions || [])
     } catch {
-      setTransactions(DEMO)
-      setError('Using demo data — connect your backend to see real transactions.')
+      setTransactions([])
+      setError('Could not load transactions. Please check your connection.')
     } finally {
       setLoading(false)
     }

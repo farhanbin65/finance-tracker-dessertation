@@ -202,7 +202,7 @@ export default function DashboardPage() {
       const [sData, bData, gData, tData] = await Promise.all([
         sRes.json(), bRes.json(), gRes.json(), tRes.json(),
       ])
-      setSummary(sData)
+      setSummary(sData.total_income !== undefined ? sData : null)
       setBudgets(bData.budgets || [])
       setGoals((gData.goals || []).slice(0, 3))
       setTransactions(tData.transactions || [])
