@@ -16,7 +16,8 @@ from flask import Blueprint, jsonify, request
 from app.core.security import require_admin
 from app.db.mongo import get_db
 from bson import ObjectId
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import calendar
 
 db = get_db()
 
@@ -64,7 +65,6 @@ def get_platform_stats():
         }
 
         # New users in last 30 days
-        from datetime import timedelta
         thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
         new_users_30d = db.users.count_documents({
             "created_at": {"$gte": thirty_days_ago}
@@ -303,7 +303,6 @@ def get_platform_charts():
         ]
 
         # ── Monthly income vs expenses (last 6 months) ──
-        from datetime import timedelta
         six_months_ago = datetime.now(timezone.utc) - timedelta(days=180)
 
         monthly_pipeline = [
@@ -326,7 +325,6 @@ def get_platform_charts():
             mo  = doc["_id"]["month"]
             key = f"{yr}-{mo:02d}"
             if key not in month_map:
-                import calendar
                 month_map[key] = {
                     "month":    calendar.month_abbr[mo] + f" {str(yr)[2:]}",
                     "income":   0,
