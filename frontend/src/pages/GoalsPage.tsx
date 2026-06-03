@@ -17,13 +17,6 @@ interface SavingsGoal {
   percentage: number; is_completed: boolean; days_remaining: number
 }
 
-// ── Demo fallback ──────────────────────────────────────────────────
-const DEMO: SavingsGoal[] = [
-  { id: '1', name: 'House Deposit', target_amount: 20000, saved_amount: 15000, remaining: 5000,  target_date: '2026-12-01', emoji: '🏠', percentage: 75, is_completed: false, days_remaining: 189 },
-  { id: '2', name: 'Holiday Fund',  target_amount: 2000,  saved_amount: 800,   remaining: 1200,  target_date: '2026-07-01', emoji: '✈️', percentage: 40, is_completed: false, days_remaining: 36  },
-  { id: '3', name: 'New Laptop',    target_amount: 1500,  saved_amount: 1500,  remaining: 0,     target_date: '2026-04-01', emoji: '💻', percentage: 100,is_completed: true,  days_remaining: 0   },
-]
-
 // ── Goal emoji options (user-chosen — emoji is intentional here) ───
 const GOAL_EMOJIS = ['🏠', '✈️', '🚗', '💻', '📱', '🎓', '💍', '🏋️', '🎸', '🐕', '⛵', '🌍', '🎯', '💰', '🏖️', '🎮']
 
@@ -244,11 +237,10 @@ export default function GoalsPage() {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      setGoals(data.goals?.length ? data.goals : DEMO)
+      setGoals(data.goals || [])
     } catch {
-      setGoals(DEMO)
-      setError('Using demo data — connect your backend to see real goals.')
-      showToast('Something went wrong. Please try again.', 'error')
+      setGoals([])
+      setError('Could not load goals. Please refresh.')
     } finally {
       setLoading(false)
     }
