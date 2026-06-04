@@ -281,8 +281,6 @@ def get_all_transactions():
 
 @admin_bp.route("/charts", methods=["GET"])
 @require_admin
-@admin_bp.route("/charts", methods=["GET"])
-@require_admin
 def get_platform_charts():
     try:
         # ── Spending by category ──
