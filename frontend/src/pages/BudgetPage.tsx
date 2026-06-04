@@ -558,7 +558,12 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ category: form.category, limit: parseFloat(form.limit) }),
+        body: JSON.stringify({
+        category: form.category,
+        limit:    parseFloat(form.limit),
+        month:    new Date().getMonth() + 1,  // current month
+        year:     new Date().getFullYear(),   // current year
+      }),
       })
       if (!res.ok) throw new Error()
       onSaved()
