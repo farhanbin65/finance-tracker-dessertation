@@ -16,6 +16,16 @@ import { getAuthToken } from '../utils/getAuthToken'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
+function useIsDesktop() {
+  const [is, setIs] = useState(window.innerWidth >= 1024)
+  useEffect(() => {
+    const fn = () => setIs(window.innerWidth >= 1024)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  return is
+}
+
 // ── Types ──────────────────────────────────────────────────────────
 interface ShapDriver {
   category: string
@@ -143,6 +153,7 @@ export default function InsightsPage() {
   const [prediction, setPrediction]   = useState<Prediction | null>(null)
   const [predLoading, setPredLoading] = useState(true)
   const [predError, setPredError]     = useState('')
+  const isDesktop = useIsDesktop()
 
   // Chat state
   const [messages, setMessages]     = useState<ChatMessage[]>([])
@@ -238,7 +249,7 @@ export default function InsightsPage() {
     : []
 
   return (
-    <div style={{ paddingBottom: 24, maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ paddingBottom: 24, maxWidth: isDesktop ? 1200 : 900, margin: '0 auto' }}>
       <style>{`@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
 
       {/* ── Page header ───────────────────────────────────────── */}
@@ -251,6 +262,15 @@ export default function InsightsPage() {
         </p>
       </div>
 
+      {/* ── Desktop 2-col grid ───────────────────────────────── */}
+      <div style={{
+        display: isDesktop ? 'grid' : 'flex',
+        gridTemplateColumns: isDesktop ? '1fr 400px' : undefined,
+        flexDirection: isDesktop ? undefined : 'column',
+        gap: isDesktop ? 24 : 0,
+        alignItems: 'start',
+      }}>
+      <div> {/* left column */}
       {/* ── PREDICTION PANEL ──────────────────────────────────── */}
       {predLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
@@ -457,6 +477,8 @@ export default function InsightsPage() {
         </>
       )}
 
+      </div> {/* end left column */}
+      <div style={{ position: isDesktop ? 'sticky' : 'static', top: 24 }}>
       {/* ── AI CHAT ───────────────────────────────────────────── */}
       <div style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
@@ -578,6 +600,8 @@ export default function InsightsPage() {
           </button>
         </div>
       </div>
+      </div> {/* end right column */}
+      </div> {/* end desktop grid */}
     </div>
   )
 }

@@ -244,193 +244,191 @@ export default function ChatPage() {
   }
 
   return (
-    <>
-      {/* ── Main chat layout ─────────────────────────────────── */}
-      <div style={{
-        display: 'flex', flexDirection: 'column',
-        // ✅ No negative margin hack — uses proper height calculation
-        height: 'calc(100dvh - 132px)',
-        margin: '-20px -24px -0px',
-      }}>
+      <>
+        <style>{`
+          @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+        `}</style>
 
-        {/* ── Context pills ──────────────────────────────────── */}
-        {context && (
-          <div style={{
-            display: 'flex', gap: 8, overflowX: 'auto',
-            padding: '12px 16px 8px', scrollbarWidth: 'none', flexShrink: 0,
-          }}>
-            {/* ✅ Vector icons — no emoji */}
-            <ContextPill icon="ti-wallet"       label="Budget" value={`£${context.total_budget.toLocaleString()}`} color="var(--accent)"  />
-            <ContextPill icon="ti-trending-up"  label="Spent"  value={`£${context.total_spent.toLocaleString()}`}  color="var(--red)"     />
-            <ContextPill icon="ti-piggy-bank"   label="Left"   value={`£${context.remaining.toLocaleString()}`}    color="var(--green)"   />
-            {context.top_category !== 'N/A' && (
-              <ContextPill icon="ti-chart-bar"  label="Top"    value={context.top_category}                        color="var(--orange)"  />
-            )}
-          </div>
-        )}
-
-        {/* ── Messages ────────────────────────────────────────── */}
+        {/* ── Desktop centering wrapper ─────────────────────── */}
         <div style={{
-          flex: 1, overflowY: 'auto', padding: '8px 16px 8px',
-          scrollbarWidth: 'none', display: 'flex', flexDirection: 'column', gap: 10,
+          display: 'flex', flexDirection: 'column',
+          height: 'calc(100dvh - 132px)',
+          margin: '-20px -24px 0',
         }}>
-          {/* Date chip */}
-          <div style={{ textAlign: 'center', margin: '4px 0 8px' }}>
-            <span style={{
-              fontSize: 11, color: 'var(--text-muted)',
-              background: 'var(--bg-card)',
-              padding: '4px 14px', borderRadius: 99, fontWeight: 500,
-            }}>Today</span>
-          </div>
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            width: '100%', maxWidth: 800,
+            marginLeft: 'auto', marginRight: 'auto',
+            overflow: 'hidden',
+          }}>
 
-          {messages.map((msg, i) => (
-            <MessageBubble key={i} message={msg} />
-          ))}
+            {/* ── Context pills ────────────────────────────── */}
+            {context && (
+              <div style={{
+                display: 'flex', gap: 8, overflowX: 'auto',
+                padding: '12px 16px 8px', scrollbarWidth: 'none', flexShrink: 0,
+              }}>
+                <ContextPill icon="ti-wallet"      label="Budget" value={`£${context.total_budget.toLocaleString()}`} color="var(--accent)"  />
+                <ContextPill icon="ti-trending-up" label="Spent"  value={`£${context.total_spent.toLocaleString()}`}  color="var(--red)"     />
+                <ContextPill icon="ti-piggy-bank"  label="Left"   value={`£${context.remaining.toLocaleString()}`}    color="var(--green)"   />
+                {context.top_category !== 'N/A' && (
+                  <ContextPill icon="ti-chart-bar" label="Top"    value={context.top_category}                        color="var(--orange)"  />
+                )}
+              </div>
+            )}
 
-          {loading && <TypingIndicator />}
+            {/* ── Messages ────────────────────────────────── */}
+            <div style={{
+              flex: 1, overflowY: 'auto', padding: '8px 16px 8px',
+              scrollbarWidth: 'none', display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ textAlign: 'center', margin: '4px 0 8px' }}>
+                <span style={{
+                  fontSize: 11, color: 'var(--text-muted)',
+                  background: 'var(--bg-card)',
+                  padding: '4px 14px', borderRadius: 99, fontWeight: 500,
+                }}>Today</span>
+              </div>
 
-          {/* Suggestion chips */}
-          {showSuggestions && !loading && messages.length <= 1 && (
-            <div style={{ marginTop: 12 }}>
-              <p style={{
-                fontSize: 12, color: 'var(--text-muted)',
-                marginBottom: 10, textAlign: 'center', fontWeight: 500,
-              }}>Try asking...</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {SUGGESTIONS.map((s, i) => (
-                  <button key={i} onClick={() => sendMessage(s.text)} style={{
-                    background: 'var(--bg-card)', border: '1px solid var(--border)',
-                    borderRadius: 14, padding: '12px 16px',
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    cursor: 'pointer', textAlign: 'left', width: '100%',
+              {messages.map((msg, i) => (
+                <MessageBubble key={i} message={msg} />
+              ))}
+
+              {loading && <TypingIndicator />}
+
+              {showSuggestions && !loading && messages.length <= 1 && (
+                <div style={{ marginTop: 12 }}>
+                  <p style={{
+                    fontSize: 12, color: 'var(--text-muted)',
+                    marginBottom: 10, textAlign: 'center', fontWeight: 500,
+                  }}>Try asking...</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {SUGGESTIONS.map((s, i) => (
+                      <button key={i} onClick={() => sendMessage(s.text)} style={{
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 14, padding: '12px 16px',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        cursor: 'pointer', textAlign: 'left', width: '100%',
+                        fontSize: 14, color: 'var(--text-primary)',
+                        transition: 'border-color .2s',
+                      }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                      >
+                        <div style={{
+                          width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                          background: 'var(--accent-light)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <i className={`ti ${s.icon}`} style={{ fontSize: 16, color: 'var(--accent)' }} aria-hidden="true" />
+                        </div>
+                        {s.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div ref={bottomRef} />
+            </div>
+
+            {/* ── Privacy note ───────────────────────────── */}
+            <div style={{
+              textAlign: 'center', fontSize: 11, color: 'var(--text-muted)',
+              padding: '6px 16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              flexShrink: 0,
+            }}>
+              <i className="ti ti-lock" style={{ fontSize: 12 }} aria-hidden="true" />
+              Sensitive data is never sent to AI
+            </div>
+
+            {/* ── Input row ──────────────────────────────── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 16px 16px',
+              background: 'var(--bg-secondary)',
+              borderTop: '1px solid var(--border)',
+              flexShrink: 0,
+              paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+            }}>
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                aria-label="Clear chat history"
+                style={{
+                  width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'var(--text-muted)',
+                  transition: 'color .2s, border-color .2s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = 'var(--red)'
+                  e.currentTarget.style.borderColor = 'rgba(255,79,100,0.3)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = 'var(--text-muted)'
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                }}
+              >
+                <i className="ti ti-trash" style={{ fontSize: 17 }} aria-hidden="true" />
+              </button>
+
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+                  }}
+                  placeholder="Ask FinSight anything..."
+                  disabled={loading}
+                  aria-label="Message input"
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 24,
+                    padding: '12px 16px',
                     fontSize: 14, color: 'var(--text-primary)',
+                    outline: 'none', opacity: loading ? 0.6 : 1,
                     transition: 'border-color .2s',
                   }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-                  >
-                    {/* ✅ Vector icon */}
-                    <div style={{
-                      width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                      background: 'var(--accent-light)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <i className={`ti ${s.icon}`}
-                         style={{ fontSize: 16, color: 'var(--accent)' }} aria-hidden="true" />
-                    </div>
-                    {s.text}
-                  </button>
-                ))}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                />
               </div>
+
+              <button
+                onClick={() => sendMessage()}
+                disabled={!input.trim() || loading}
+                aria-label="Send message"
+                style={{
+                  width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                  background: input.trim() && !loading ? 'var(--accent)' : 'var(--bg-card)',
+                  border: input.trim() && !loading ? 'none' : '1px solid var(--border)',
+                  cursor: input.trim() && !loading ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: input.trim() && !loading ? '#fff' : 'var(--text-muted)',
+                  transition: 'all .2s',
+                }}
+              >
+                <i className="ti ti-send" style={{ fontSize: 18 }} aria-hidden="true" />
+              </button>
             </div>
-          )}
 
-          <div ref={bottomRef} />
-        </div>
-
-        {/* ── Privacy note ─────────────────────────────────────── */}
-        <div style={{
-          textAlign: 'center', fontSize: 11, color: 'var(--text-muted)',
-          padding: '6px 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-          flexShrink: 0,
-        }}>
-          <i className="ti ti-lock" style={{ fontSize: 12 }} aria-hidden="true" />
-          Sensitive data is never sent to AI
-        </div>
-
-        {/* ── Input row ────────────────────────────────────────── */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 16px 16px',
-          background: 'var(--bg-secondary)',
-          borderTop: '1px solid var(--border)',
-          flexShrink: 0,
-          // Safe area for iPhone
-          paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-        }}>
-          {/* Clear button */}
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            aria-label="Clear chat history"
-            style={{
-              width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-              background: 'var(--bg-card)', border: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'var(--text-muted)',
-              transition: 'color .2s, border-color .2s',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = 'var(--red)'
-              e.currentTarget.style.borderColor = 'rgba(255,79,100,0.3)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = 'var(--text-muted)'
-              e.currentTarget.style.borderColor = 'var(--border)'
-            }}
-          >
-            <i className="ti ti-trash" style={{ fontSize: 17 }} aria-hidden="true" />
-          </button>
-
-          {/* Text input */}
-          <div style={{ flex: 1, position: 'relative' }}>
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  sendMessage()
-                }
-              }}
-              placeholder="Ask FinSight anything..."
-              disabled={loading}
-              aria-label="Message input"
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 24,
-                padding: '12px 16px',
-                fontSize: 14, color: 'var(--text-primary)',
-                outline: 'none', opacity: loading ? 0.6 : 1,
-                transition: 'border-color .2s',
-              }}
-              onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-            />
           </div>
-
-          {/* Send button */}
-          <button
-            onClick={() => sendMessage()}
-            disabled={!input.trim() || loading}
-            aria-label="Send message"
-            style={{
-              width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-              background: input.trim() && !loading ? 'var(--accent)' : 'var(--bg-card)',
-              border: input.trim() && !loading ? 'none' : '1px solid var(--border)',
-              cursor: input.trim() && !loading ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: input.trim() && !loading ? '#fff' : 'var(--text-muted)',
-              transition: 'all .2s',
-            }}
-          >
-            <i className="ti ti-send" style={{ fontSize: 18 }} aria-hidden="true" />
-          </button>
         </div>
-      </div>
 
-      {/* ── Clear confirm dialog ──────────────────────────────── */}
-      {showClearConfirm && (
-        <ClearConfirmDialog
-          onConfirm={handleClearConfirmed}
-          onCancel={() => setShowClearConfirm(false)}
-        />
-      )}
-    </>
-  )
+        {showClearConfirm && (
+          <ClearConfirmDialog
+            onConfirm={handleClearConfirmed}
+            onCancel={() => setShowClearConfirm(false)}
+          />
+        )}
+      </>
+    )
 }
 
 // ── Context pill ───────────────────────────────────────────────────
