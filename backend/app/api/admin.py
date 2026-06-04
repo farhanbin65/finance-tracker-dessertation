@@ -281,14 +281,11 @@ def get_all_transactions():
 
 @admin_bp.route("/charts", methods=["GET"])
 @require_admin
+@admin_bp.route("/charts", methods=["GET"])
+@require_admin
 def get_platform_charts():
-    """
-    Returns platform-wide chart data combining all users.
-    - Spending by category (donut chart)
-    - Monthly income vs expenses across all users (bar chart)
-    """
     try:
-        # ── Spending by category (all users, all time) ──
+        # ── Spending by category ──
         cat_pipeline = [
             {"$match": {"type": "expense"}},
             {"$group": {
@@ -318,7 +315,6 @@ def get_platform_charts():
             {"$sort": {"_id.year": 1, "_id.month": 1}}
         ]
 
-        # Build month map
         month_map: dict = {}
         for doc in db.transactions.aggregate(monthly_pipeline):
             yr  = doc["_id"]["year"]
