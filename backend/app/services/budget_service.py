@@ -147,7 +147,7 @@ def get_budgets_with_actuals(user_id: str, year: int, month: int) -> dict:
         # Status logic — drives colour coding in the UI
         if percentage_used >= 100:
             status = "over_budget"       # Red
-        elif percentage_used >= budget["alert_threshold"]:
+        elif percentage_used >= budget.get("alert_threshold", 80):
             status = "warning"           # Amber
         else:
             status = "on_track"          # Green
@@ -163,7 +163,7 @@ def get_budgets_with_actuals(user_id: str, year: int, month: int) -> dict:
             "remaining": remaining,
             "percentage_used": percentage_used,
             "status": status,
-            "alert_threshold": budget["alert_threshold"],
+            "alert_threshold": budget.get("alert_threshold", 80),
             "transaction_count": transaction_count,
             "month": month,
             "year": year,
