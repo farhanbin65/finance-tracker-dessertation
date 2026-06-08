@@ -142,12 +142,19 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchContext()
-    setMessages([{
-      role: 'assistant',
-      // ✅ Dynamic name from localStorage
-      content: `${getGreeting()}, ${firstName}! I'm FinSight AI — I have access to your financial data and I'm here to help you make smarter money decisions. What would you like to know?`,
-      timestamp: new Date(),
-    }])
+    loadHistory().then(() => {
+      setMessages(prev => {
+        if (prev.length === 0) {
+          return [{
+            role: 'assistant' as const,
+            // ✅ Dynamic name from localStorage
+            content: `${getGreeting()}, ${firstName}! I'm FinSight AI — I have access to your financial data and I'm here to help you make smarter money decisions. What would you like to know?`,
+            timestamp: new Date(),
+          }]
+        }
+        return prev
+      })
+    })
   }, [])
 
   useEffect(() => {
@@ -181,6 +188,29 @@ export default function ChatPage() {
       })
     } catch {
       // Context optional — chat works without it
+    }
+  }
+
+  async function loadHistory() {
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(`${API_URL}/api/chat/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      const data = await res.json()
+
+      if (data.messages?.length > 0) {
+        const loaded: Message[] = data.messages.map((m: any) => ({
+          role:      m.role,
+          content:   m.content,
+          timestamp: new Date(m.timestamp),
+        }))
+        setMessages(loaded)
+        setShowSuggestions(false)
+      }
+    } catch {
+      // History load failure is non-critical - chat still works
     }
   }
 
@@ -233,10 +263,19 @@ export default function ChatPage() {
     }
   }
 
-  function handleClearConfirmed() {
+  async function handleClearConfirmed() {
+    try {
+      const token = await getAuthToken()
+      await fetch(`${API_URL}/api/chat/history`, {
+        method:  'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {
+      // Non-critical - clear locally even if server fails
+    }
     setMessages([{
-      role: 'assistant',
-      content: `${getGreeting()}, ${firstName}! Chat cleared. How can I help you?`,
+      role:      'assistant',
+      content:   `${getGreeting()}, ${firstName}! Chat cleared. How can I help you?`,
       timestamp: new Date(),
     }])
     setShowSuggestions(true)
