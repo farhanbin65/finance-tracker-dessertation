@@ -1,11 +1,27 @@
 """
 FinSight — AI Chat Route
-Uses Groq (Llama 3) for fast, free AI responses.
-Persistent memory — conversation history saved to MongoDB.
+=========================
+Integrates fintech-llm-guard PyPI package as the middleware layer
+between user messages and the Groq LLM API.
+
+Pipeline (owned by fintech-llm-guard):
+  Layer 0a — Provenance tracker    (indirect injection detection)
+  Layer 0b — Risk scorer           (message risk assessment)
+  Layer 1  — Input sanitiser       (prompt injection detection)
+  Layer 2  — Structural separator  (data/instruction separation)
+  Layer 3  — PII redactor          (PII detection + pseudonymisation)
+  Layer 4a — Output validator      (response safety check)
+  Layer 4b — Action allowlist      (action safety)
+  Canary   — Context leakage       (system prompt exfiltration)
+
+Research context:
+  FinSight is the live proof-of-concept for GSAM 2026 paper:
+  "Fintech LLM Guardrails: A Deployable Privacy-Preserving Middleware
+  for Intelligent Financial Assistants"
 
 Endpoints:
-  POST /api/chat         — send message + get reply (saves to DB)
-  GET  /api/chat/history — load conversation history
+  POST   /api/chat         — send message, get guardrail-protected reply
+  GET    /api/chat/history — load conversation history
   DELETE /api/chat/history — clear conversation history
 """
 
@@ -14,44 +30,21 @@ from app.core.config import config
 from app.core.logging import logger
 from app.core.security import require_auth
 from app.db.mongo import get_db
-from groq import Groq
+from app.services.groq_client import GroqLLMClient
+from fintech_llm_guard import GuardrailPipeline
 from datetime import datetime, timezone
-from bson import ObjectId
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api")
 
-client = Groq(api_key=config.GROQ_API_KEY)
+# ── Initialise once at module level ───────────────────────────────
+# Both objects are stateless and safe to share across requests
+_groq_client = GroqLLMClient()
+_pipeline    = GuardrailPipeline(llm_client=_groq_client)
 
-# Max messages to keep in DB per user — prevents unbounded growth
-MAX_HISTORY = 100
-
-# Max messages to send to Groq per request — keeps cost low
+# Max messages to keep in DB per user
+MAX_HISTORY    = 100
+# Max messages to send to Groq per request
 CONTEXT_WINDOW = 20
-
-SYSTEM_PROMPT = """You are FinSight AI, a smart and friendly personal finance assistant.
-
-Your personality:
-- Warm, encouraging, and professional
-- Speak like a knowledgeable friend, not a robot
-- Use British English and £ for currency
-- Keep responses concise — 2-4 sentences unless asked for detail
-- Use emojis sparingly but effectively
-
-Your capabilities:
-- Analyse spending patterns and give insights
-- Help users manage budgets and set financial goals
-- Give practical savings advice and money tips
-- Explain financial concepts in simple terms
-- Flag unusual or concerning spending patterns
-
-Your rules:
-- NEVER give specific investment advice or stock tips
-- NEVER ask for sensitive data like card numbers or passwords
-- Always clarify you are an AI, not a regulated financial advisor
-- Keep all advice relevant to personal finance
-- Be encouraging — personal finance is stressful
-
-When given the user's financial context, use it for personalised advice."""
 
 
 def _fmt_message(doc: dict) -> dict:
@@ -60,26 +53,70 @@ def _fmt_message(doc: dict) -> dict:
         "id":        str(doc["_id"]),
         "role":      doc["role"],
         "content":   doc["content"],
-        "timestamp": doc["timestamp"].isoformat() if isinstance(doc.get("timestamp"), datetime) else "",
+        "timestamp": doc["timestamp"].isoformat()
+                     if isinstance(doc.get("timestamp"), datetime) else "",
     }
 
+
+def _build_transaction_context(user_id: str, db) -> list[dict]:
+    """
+    Fetch the user's recent transactions from MongoDB and map to the
+    format expected by fintech-llm-guard's StructuralSeparator:
+      { date, amount, description }
+
+    Mapping:
+      title    → description  (pipeline reads 'description')
+      amount   → negative for expenses, positive for income
+      category → passed as extra field (included in data block)
+    """
+    transactions = list(
+        db.transactions
+        .find({"user_id": user_id})
+        .sort("date", -1)
+        .limit(50)   # last 50 transactions for context
+    )
+
+    result = []
+    for tx in transactions:
+        # Format date as string
+        date = tx.get("date", "")
+        if isinstance(date, datetime):
+            date = date.strftime("%Y-%m-%d")
+
+        # Make expenses negative, income positive
+        amount = tx.get("amount", 0)
+        if tx.get("type") == "expense":
+            amount = -abs(amount)
+        else:
+            amount = abs(amount)
+
+        result.append({
+            "date":        str(date),
+            "amount":      round(amount, 2),
+            "description": tx.get("title", ""),    # title → description
+            "category":    tx.get("category", ""), # extra field — included by pipeline
+        })
+
+    return result
+
+
+# ── GET /api/chat/history ─────────────────────────────────────────
 
 @chat_bp.route("/chat/history", methods=["GET"])
 @require_auth
 def get_history():
     """
     GET /api/chat/history
-    Returns the user's saved conversation history.
-    Frontend calls this on page load to restore the chat.
+    Returns saved conversation history. Frontend calls on page load.
     """
     try:
-        db = get_db()
+        db    = get_db()
         limit = int(request.args.get("limit", 50))
 
         messages = list(
             db.chat_messages
             .find({"user_id": g.current_user_id})
-            .sort("timestamp", 1)   # oldest first
+            .sort("timestamp", 1)
             .limit(limit)
         )
 
@@ -93,16 +130,17 @@ def get_history():
         return jsonify({"error": str(e)}), 500
 
 
+# ── DELETE /api/chat/history ──────────────────────────────────────
+
 @chat_bp.route("/chat/history", methods=["DELETE"])
 @require_auth
 def clear_history():
     """
     DELETE /api/chat/history
-    Clears the user's entire conversation history.
-    Called when user clicks the clear chat button.
+    Clears the user's conversation history.
     """
     try:
-        db = get_db()
+        db     = get_db()
         result = db.chat_messages.delete_many({"user_id": g.current_user_id})
 
         logger.info("Chat history cleared", extra={
@@ -119,12 +157,15 @@ def clear_history():
         return jsonify({"error": str(e)}), 500
 
 
+# ── POST /api/chat ────────────────────────────────────────────────
+
 @chat_bp.route("/chat", methods=["POST"])
 @require_auth
 def chat():
     """
     POST /api/chat
-    Sends a message, gets AI reply, saves both to MongoDB.
+    Runs user message through the fintech-llm-guard pipeline,
+    saves the exchange to MongoDB, returns the safe response.
     """
     user_id = g.current_user_id
     db      = get_db()
@@ -133,86 +174,65 @@ def chat():
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    messages     = data.get("messages", [])
-    user_context = data.get("context", {})
-
+    messages = data.get("messages", [])
     if not messages:
         return jsonify({"error": "No messages provided"}), 400
 
-    # ── Get the latest user message ───────────────────
+    # ── Extract latest user message ───────────────────
     latest_user_message = None
     for msg in reversed(messages):
         if msg.get("role") == "user":
-            latest_user_message = msg.get("content", "")
+            latest_user_message = msg.get("content", "").strip()
             break
 
     if not latest_user_message:
         return jsonify({"error": "No user message found"}), 400
 
-    # ── Build financial context string ────────────────
-    context_str = ""
-    if user_context:
-        context_str = f"""
-Current user financial snapshot:
-- Monthly budget:    £{user_context.get('total_budget', 'N/A')}
-- Spent this month:  £{user_context.get('total_spent', 'N/A')}
-- Remaining budget:  £{user_context.get('remaining', 'N/A')}
-- Top spending area: {user_context.get('top_category', 'N/A')}
-- Active goals:      {user_context.get('goals_count', 0)}
-- Total saved:       £{user_context.get('total_saved', 0)}
-"""
+    # ── Build transaction context for the pipeline ────
+    transactions = _build_transaction_context(user_id, db)
 
-    full_system = SYSTEM_PROMPT
-    if context_str:
-        full_system += f"\n\n{context_str}"
-
-    # ── Load conversation history from MongoDB ────────
-    # This is the persistent memory — we combine DB history
-    # with whatever the frontend sent, deduplicated
-    db_history = list(
-        db.chat_messages
-        .find({"user_id": user_id})
-        .sort("timestamp", 1)
-        .limit(MAX_HISTORY)
-    )
-
-    # Build Groq context from DB history (last CONTEXT_WINDOW messages)
-    history_for_groq = [
-        {"role": msg["role"], "content": msg["content"]}
-        for msg in db_history[-CONTEXT_WINDOW:]
-        if msg["role"] in ("user", "assistant")
-    ]
-
-    # Add the new user message if not already in history
-    # (avoid duplication if frontend also sends history)
-    last_db_content = db_history[-1]["content"] if db_history else ""
-    if latest_user_message != last_db_content:
-        history_for_groq.append({
-            "role":    "user",
-            "content": latest_user_message,
-        })
-
+    # ── Run through fintech-llm-guard pipeline ────────
     try:
-        logger.info("Chat request", extra={
-            "user_id":       user_id,
-            "message_count": len(history_for_groq),
+        logger.info("Guardrail pipeline: processing message", extra={
+            "user_id":     user_id,
+            "tx_count":    len(transactions),
+            "msg_preview": latest_user_message[:60],
         })
 
-        response = client.chat.completions.create(
-            model=config.GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": full_system},
-                *history_for_groq,
-            ],
-            max_tokens=1024,
-            temperature=0.7,
-            top_p=0.9,
+        result = _pipeline.process(
+            user_message=latest_user_message,
+            transactions=transactions,
+            session_id=user_id,   # use user_id as session for canary tracking
         )
 
-        reply = response.choices[0].message.content
+        # ── Blocked by pipeline ───────────────────────
+        if result.blocked:
+            logger.warning("Pipeline blocked message", extra={
+                "user_id":      user_id,
+                "block_layer":  result.block_layer,
+                "block_reason": result.block_reason,
+            })
 
-        # ── Save user message + AI reply to MongoDB ───
-        now = datetime.now(timezone.utc)
+            # Save blocked event to audit log
+            db.audit_logs.insert_one({
+                "event_type":   "GUARDRAIL_BLOCK",
+                "user_id":      user_id,
+                "timestamp":    datetime.now(timezone.utc),
+                "block_layer":  result.block_layer,
+                "block_reason": result.block_reason,
+                "message":      latest_user_message[:200],
+            })
+
+            return jsonify({
+                "error":        "Message blocked by security filter",
+                "block_layer":  result.block_layer,
+                "block_reason": result.block_reason,
+                "blocked":      True,
+            }), 400
+
+        # ── Safe response — save to MongoDB ───────────
+        reply = result.response
+        now   = datetime.now(timezone.utc)
 
         db.chat_messages.insert_many([
             {
@@ -232,10 +252,8 @@ Current user financial snapshot:
         ])
 
         # ── Prune old messages if over limit ──────────
-        # Keeps MongoDB clean — only keep last MAX_HISTORY messages
         total_count = db.chat_messages.count_documents({"user_id": user_id})
         if total_count > MAX_HISTORY:
-            # Find the ID of the message at position (total - MAX_HISTORY)
             oldest_to_keep = list(
                 db.chat_messages
                 .find({"user_id": user_id})
@@ -245,25 +263,37 @@ Current user financial snapshot:
             )
             if oldest_to_keep:
                 db.chat_messages.delete_many({
-                    "user_id":  user_id,
-                    "timestamp": {"$lt": oldest_to_keep[0]["timestamp"]}
+                    "user_id":   user_id,
+                    "timestamp": {"$lt": oldest_to_keep[0]["timestamp"]},
                 })
 
-        logger.info("Chat response saved", extra={
-            "user_id":       user_id,
-            "input_tokens":  response.usage.prompt_tokens,
-            "output_tokens": response.usage.completion_tokens,
+        # ── Build audit summary for response ──────────
+        audit = result.audit
+        pii_redacted = bool(
+            result.redaction_result and
+            result.redaction_result.entities_found
+        )
+
+        logger.info("Guardrail pipeline: message processed safely", extra={
+            "user_id":      user_id,
+            "pii_redacted": pii_redacted,
+            "latency_ms":   audit.latency_ms if audit else None,
         })
 
         return jsonify({
-            "reply": reply,
-            "usage": {
-                "input_tokens":  response.usage.prompt_tokens,
-                "output_tokens": response.usage.completion_tokens,
-            }
-        })
+            "reply":        reply,
+            # ── Research metadata (useful for dissertation evidence) ──
+            "guardrail": {
+                "blocked":      False,
+                "pii_redacted": pii_redacted,
+                "latency_ms":   audit.latency_ms   if audit else None,
+                "risk_score":   audit.risk_score   if audit else None,
+                "risk_level":   audit.risk_level   if audit else None,
+            },
+        }), 200
 
     except Exception as e:
-        print(f"GROQ ERROR DETAILS: {type(e).__name__}: {e}")
-        logger.error("Groq API error", extra={"error": str(e)})
+        import traceback
+        traceback.print_exc()
+        logger.error("Chat pipeline error", extra={"error": str(e)})
         return jsonify({"error": str(e)}), 500
