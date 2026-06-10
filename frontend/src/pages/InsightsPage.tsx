@@ -249,7 +249,12 @@ export default function InsightsPage() {
     : []
 
   return (
-    <div style={{ paddingBottom: 24, maxWidth: isDesktop ? 1200 : 900, margin: '0 auto' }}>
+    <div style={{
+      maxWidth: isDesktop ? 1100 : '100%',
+      margin: '0 auto',
+      padding: isDesktop ? '32px 24px 24px' : '0 0 24px',
+      boxSizing: 'border-box',
+    }}>
       <style>{`@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
 
       {/* ── Page header ───────────────────────────────────────── */}

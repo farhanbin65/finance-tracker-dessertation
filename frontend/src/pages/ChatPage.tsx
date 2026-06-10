@@ -9,6 +9,16 @@ import { getAuthToken } from '../utils/getAuthToken'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
+function useIsDesktop() {
+  const [is, setIs] = useState(window.innerWidth >= 1024)
+  useEffect(() => {
+    const fn = () => setIs(window.innerWidth >= 1024)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  return is
+}
+
 // ── Types ──────────────────────────────────────────────────────────
 interface Message {
   role: 'user' | 'assistant'
@@ -126,6 +136,7 @@ function ClearConfirmDialog({ onConfirm, onCancel }: {
 
 // ══════════════════════════════════════════════════════════════════
 export default function ChatPage() {
+  const isDesktop = useIsDesktop()
   // ✅ Read name from localStorage — not hardcoded
   const userName  = localStorage.getItem('fs_name') || 'there'
   const firstName = userName.split(' ')[0]
@@ -288,16 +299,25 @@ export default function ChatPage() {
           @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
         `}</style>
 
-        {/* ── Desktop centering wrapper ─────────────────────── */}
+        {/* ── Desktop 2-column wrapper ─────────────────────── */}
         <div style={{
-          display: 'flex', flexDirection: 'column',
-          height: 'calc(100dvh - 132px)',
-          margin: '-20px -24px 0',
+          display: 'flex',
+          flexDirection: isDesktop ? 'row' : 'column',
+          gap: isDesktop ? 24 : 0,
+          maxWidth: isDesktop ? 1200 : '100%',
+          margin: isDesktop ? '-20px auto 0' : '-20px -24px 0',
+          padding: isDesktop ? '32px 24px 0' : 0,
+          height: isDesktop ? 'calc(100dvh - 96px)' : 'calc(100dvh - 132px)',
+          boxSizing: 'border-box',
         }}>
           <div style={{
             flex: 1, display: 'flex', flexDirection: 'column',
-            width: '100%', maxWidth: 800,
+            minWidth: 0,
+            width: '100%', maxWidth: isDesktop ? 'none' : 800,
             marginLeft: 'auto', marginRight: 'auto',
+            background: isDesktop ? 'var(--bg-secondary)' : 'transparent',
+            border: isDesktop ? '1px solid var(--border)' : 'none',
+            borderRadius: isDesktop ? 16 : 0,
             overflow: 'hidden',
           }}>
 
@@ -458,6 +478,110 @@ export default function ChatPage() {
             </div>
 
           </div>
+
+          {isDesktop && (
+            <aside style={{
+              flex: '0 0 300px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              minHeight: 0,
+            }}>
+              <div style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 16,
+                padding: 20,
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+              }}>
+                <h3 style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  marginBottom: 16,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.05em',
+                }}>
+                  Recent conversation
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {messages.slice(-6).map((msg, i) => (
+                    <button
+                      key={`${msg.timestamp.getTime()}-${i}`}
+                      onClick={() => setInput(msg.content)}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-secondary)',
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span style={{
+                        display: 'block',
+                        color: msg.role === 'user' ? 'var(--accent)' : 'var(--text-muted)',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '.05em',
+                        marginBottom: 4,
+                      }}>
+                        {msg.role === 'user' ? 'You' : 'FinSight'}
+                      </span>
+                      {msg.content.length > 88 ? `${msg.content.slice(0, 88)}...` : msg.content}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 16,
+                padding: 20,
+              }}>
+                <h3 style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  marginBottom: 12,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.05em',
+                }}>
+                  Try asking
+                </h3>
+                {SUGGESTIONS.slice(0, 3).map(prompt => (
+                  <button
+                    key={prompt.text}
+                    onClick={() => setInput(prompt.text)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '10px 12px',
+                      marginBottom: 8,
+                      borderRadius: 10,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      lineHeight: 1.4,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {prompt.text}
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
         </div>
 
         {showClearConfirm && (
