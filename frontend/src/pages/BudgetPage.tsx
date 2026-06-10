@@ -554,33 +554,57 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
 
   async function handleSubmit() {
     if (!form.limit || isNaN(Number(form.limit))) return setErr('Enter a valid amount.')
-    if (Number(form.limit) <= 0)                  return setErr('Limit must be greater than zero.')
+    if (Number(form.limit) <= 0) return setErr('Limit must be greater than zero.')
     setErr(''); setSubmitting(true)
     try {
-      const token  = await getAuthToken()
+      const token = await getAuthToken()
+      if (!token) return setErr('Session expired — please log in again.')
+
       const url    = mode === 'edit' && existing
         ? `${API_URL}/api/budgets/${existing.id}`
         : `${API_URL}/api/budgets`
       const method = mode === 'edit' ? 'PUT' : 'POST'
+
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({
-        category: form.category,
-        limit:    parseFloat(form.limit),
-        month:    new Date().getMonth() + 1,  // current month
-        year:     new Date().getFullYear(),   // current year
-      }),
+          category: form.category,
+          limit:    parseFloat(form.limit),
+          month:    new Date().getMonth() + 1,
+          year:     new Date().getFullYear(),
+        }),
       })
-      if (!res.ok) throw new Error()
-      onSaved()
-    } catch {
-      setErr('Could not save. Please try again.')
-      showToast('Something went wrong. Please try again.', 'error')
-    } finally {
-      setSubmitting(false)
+
+    // ── Handle specific error codes with friendly messages ──
+    if (res.status === 401) {
+      setErr('Session expired — please log in again.')
+      return
     }
+    if (res.status === 409) {
+      setErr(`${form.category} budget already exists for this month. Use the edit button instead.`)
+      return
+    }
+    if (res.status === 422) {
+      const data = await res.json()
+      setErr(data?.error || 'Invalid data — check your inputs.')
+      return
+    }
+    if (!res.ok) {
+      setErr('Something went wrong. Please try again.')
+      return
+    }
+
+    onSaved()
+  } catch {
+    setErr('No connection — check your internet and try again.')
+  } finally {
+    setSubmitting(false)
   }
+}
 
   return (
     <div onClick={onClose} style={{
