@@ -7,6 +7,7 @@ import jsPDF from 'jspdf'
 import { useState, useEffect, useRef } from 'react'
 import { useToast } from '../components/ui/Toast'
 import { getAuthToken } from '../utils/getAuthToken'
+import { useIsDesktop } from '../hooks/useIsDesktop'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -143,6 +144,7 @@ export default function TransactionsPage() {
   const searchRef                       = useRef<HTMLInputElement>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const exportMenuRef                   = useRef<HTMLDivElement>(null)
+  const isDesktop = useIsDesktop()
 
   // ── CSV Export ────────────────────────────────────────────────
   // ── Export utilities ──────────────────────────────────────────
@@ -502,7 +504,12 @@ export default function TransactionsPage() {
   const confirmingItem = transactions.find(t => t.id === confirmId)
 
   return (
-    <div style={{ width: '100%', margin: '0 auto', paddingBottom: 32 }}>
+    <div style={{
+  width: '100%',
+  maxWidth: isDesktop ? '960px' : '100%',
+  margin: '0 auto',
+  padding: isDesktop ? '24px 32px 32px' : '0 0 32px',
+}}>
       <style>{`
         @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
         @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }

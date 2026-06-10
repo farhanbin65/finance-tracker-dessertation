@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../components/ui/Toast'
 import { getAuthToken } from '../utils/getAuthToken'
+import { useIsDesktop } from '../hooks/useIsDesktop'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -114,6 +115,7 @@ export default function BudgetPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editTarget, setEditTarget]     = useState<BudgetCategory | null>(null)
   const [confirmId, setConfirmId]       = useState<string | null>(null)
+  const isDesktop = useIsDesktop()
 
   useEffect(() => { fetchBudget() }, [])
 
@@ -187,7 +189,12 @@ export default function BudgetPage() {
   const confirmItem   = categories.find(c => c.id === confirmId)
 
   return (
-    <div style={{ width: '100%', margin: '0 auto', paddingBottom: 32 }}>
+    <div style={{
+  width: '100%',
+  maxWidth: isDesktop ? '960px' : '100%',
+  margin: '0 auto',
+  padding: isDesktop ? '24px 32px 32px' : '0 0 32px',
+}}>
       <style>{`
         @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
       `}</style>
