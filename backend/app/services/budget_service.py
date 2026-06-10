@@ -239,11 +239,11 @@ def delete_budget(user_id: str, budget_id: str) -> dict:
 def _format_budget(doc: dict) -> dict:
     """Convert MongoDB budget document to clean API response."""
     return {
-        "id": str(doc["_id"]),
-        "category": doc["category"],
-        "limit": doc["limit"],
-        "month": doc["month"],
-        "year": doc["year"],
-        "alert_threshold": doc["alert_threshold"],
-        "created_at": doc["created_at"].isoformat() if isinstance(doc.get("created_at"), datetime) else None,
+        "id":              str(doc["_id"]),
+        "category":        doc["category"],
+        "limit":           doc["limit"],
+        "month":           doc["month"],
+        "year":            doc["year"],
+        "alert_threshold": doc.get("alert_threshold", 80.0),  # safe default
+        "created_at":      doc["created_at"].isoformat() if isinstance(doc.get("created_at"), datetime) else None,
     }
