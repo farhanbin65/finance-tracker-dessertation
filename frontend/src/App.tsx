@@ -1,3 +1,4 @@
+import { ToastProvider } from './components/ui/Toast'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 
@@ -135,39 +136,41 @@ function AdminRoute() {
 
 export default function App() {
   return (
-    <Routes>
-      {/* ── Public routes ─────────────────────────────────── */}
-      <Route path="/login"           element={<LoginPage />} />
-      <Route path="/register"        element={<RegisterPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/callback"        element={<CallbackPage />} />
+    <ToastProvider>
+      <Routes>
+        {/* ── Public routes ─────────────────────────────────── */}
+        <Route path="/login"           element={<LoginPage />} />
+        <Route path="/register"        element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/callback"        element={<CallbackPage />} />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* ── Admin routes — own layout, no BottomNav ───────── */}
-      <Route element={<AdminRoute />}>
-        <Route path="/admin"                element={<AdminPage />} />
-        <Route path="/admin/users/:userId"  element={<AdminUserPage />} />
-        <Route path="/admin/settings"       element={<AdminSettingsPage />} />
-      </Route>
+        {/* ── Admin routes — own layout, no BottomNav ───────── */}
+        <Route element={<AdminRoute />}>
+          <Route path="/admin"                element={<AdminPage />} />
+          <Route path="/admin/users/:userId"  element={<AdminUserPage />} />
+          <Route path="/admin/settings"       element={<AdminSettingsPage />} />
+        </Route>
 
-      {/* ── User protected routes — full AppLayout ────────── */}
-      <Route element={
-        <PrivateRoute>
-          <AppLayout />
-        </PrivateRoute>
-      }>
-        <Route path="/dashboard"    element={<DashboardPage />} />
-        <Route path="/transactions" element={<TransactionsPage />} />
-        <Route path="/budget"       element={<BudgetPage />} />
-        <Route path="/goals"        element={<GoalsPage />} />
-        <Route path="/insights"     element={<ChatPage />} />
-        <Route path="/safety"       element={<ProfilePage />} />
-      </Route>
+        {/* ── User protected routes — full AppLayout ────────── */}
+        <Route element={
+          <PrivateRoute>
+            <AppLayout />
+          </PrivateRoute>
+        }>
+          <Route path="/dashboard"    element={<DashboardPage />} />
+          <Route path="/transactions" element={<TransactionsPage />} />
+          <Route path="/budget"       element={<BudgetPage />} />
+          <Route path="/goals"        element={<GoalsPage />} />
+          <Route path="/insights"     element={<ChatPage />} />
+          <Route path="/safety"       element={<ProfilePage />} />
+        </Route>
 
-      {/* Catch all */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        {/* Catch all */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </ToastProvider>
   )
 }
