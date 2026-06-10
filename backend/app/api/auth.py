@@ -174,4 +174,67 @@ def logout():
     """
     from app.services.auth_service import _write_audit_log
     _write_audit_log(g.current_user_id, "USER_LOGOUT", {})
-    return jsonify({"message": "Logged out successfully."}), 200
+@auth_bp.route("/export", methods=["GET"])
+@require_auth
+def export_my_data():
+    """
+    GET /api/auth/export
+    GDPR Article 20 — Right to data portability.
+    Returns all user data as JSON: profile, transactions, budgets, goals.
+    """
+    try:
+        from bson import ObjectId
+        from datetime import datetime, timezone
+
+        db = get_db()
+        user_id = g.current_user_id
+
+        # ── Helper: convert MongoDB doc to JSON-safe dict ──
+        def clean(doc: dict) -> dict:
+            cleaned = {}
+            for k, v in doc.items():
+                if k == "_id":
+                    cleaned["id"] = str(v)
+                elif isinstance(v, ObjectId):
+                    cleaned[k] = str(v)
+                elif isinstance(v, datetime):
+                    cleaned[k] = v.isoformat()
+                else:
+                    cleaned[k] = v
+            return cleaned
+
+        # ── Fetch user profile ─────────────────────────────
+        user = db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Remove sensitive fields before export
+        user.pop("password_hash", None)
+        user.pop("__v", None)
+
+        # ── Fetch all user data ────────────────────────────
+        transactions = [clean(t) for t in db.transactions.find({"user_id": user_id})]
+        budgets      = [clean(b) for b in db.budgets.find({"user_id": user_id})]
+        goals        = [clean(g_) for g_ in db.goals.find({"user_id": user_id})]
+        audit_logs   = [clean(a) for a in db.audit_logs.find(
+                            {"user_id": user_id},
+                            {"_id": 1, "action": 1, "created_at": 1}  # limited fields only
+                        )]
+
+        # ── Write audit log for this export ───────────────
+        from app.services.auth_service import _write_audit_log
+        _write_audit_log(user_id, "GDPR_EXPORT", {"records_exported": len(transactions)})
+
+        return jsonify({
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "gdpr_notice": "This export contains all personal data held by FinSight under GDPR Article 20.",
+            "profile":      clean(user),
+            "transactions": transactions,
+            "budgets":      budgets,
+            "goals":        goals,
+            "audit_log":    audit_logs,
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": "Export failed. Please try again."}), 500
+    
