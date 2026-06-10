@@ -4,12 +4,13 @@
  * desktop max-width, dynamic user data, no window.alert
  */
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { useToast } from '../components/ui/Toast'
 import { getAuthToken } from '../utils/getAuthToken'
 import ReviewSheet from '../components/ReviewSheet'
+import jsPDF from 'jspdf'
 
 const PALETTES = [
   { id: 'purple', color: '#7c5cfc', label: 'Violet' },
@@ -38,6 +39,8 @@ export default function ProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [exporting, setExporting]          = useState(false)
   const [reviewOpen, setReviewOpen]        = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
 
   const userName   = localStorage.getItem('fs_name')  || 'Your Account'
   const userEmail  = localStorage.getItem('fs_email') || ''
@@ -87,6 +90,157 @@ export default function ProfilePage() {
       setExporting(false)
     }
   }
+
+  // ── CSV Export ─────────────────────────────────────────────────
+  async function exportToCSV() {
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/transactions`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const txns = data.transactions || []
+      if (txns.length === 0) { showToast('No transactions to export', 'warning'); return }
+
+      const BOM = '﻿'
+      const headers = 'Date,Title,Category,Amount,Type'
+      const rows = txns.map((t: any) => [
+        new Date(t.date).toLocaleDateString('en-GB'),
+        `"${(t.title || '').replace(/"/g, '""')}"`,
+        t.category || '',
+        t.amount,
+        t.type,
+      ].join(','))
+      const csv = [
+        `# FinSight Transaction Export`,
+        `# Exported: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+        headers,
+        ...rows,
+      ].join('\r\n')
+
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `finsight-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast(`Exported ${txns.length} transactions as CSV`, 'success')
+    } catch {
+      showToast('Export failed — try again', 'error')
+    }
+  }
+
+  // ── PDF Export ─────────────────────────────────────────────────
+  async function exportToPDF() {
+    try {
+      const token = await getAuthToken()
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/transactions`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const txns = data.transactions || []
+      if (txns.length === 0) { showToast('No transactions to export', 'warning'); return }
+
+      const doc = new jsPDF()
+      const now = new Date()
+      const accentR = 124, accentG = 92, accentB = 252
+
+      doc.setFillColor(accentR, accentG, accentB)
+      doc.rect(0, 0, 210, 28, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text('FinSight', 14, 12)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Personal Finance Intelligence', 14, 19)
+      doc.text(`Statement: ${now.toLocaleDateString('en-GB')}`, 196, 19, { align: 'right' })
+
+      const income  = txns.filter((t: any) => t.type === 'income').reduce((a: number, t: any) => a + t.amount, 0)
+      const expense = txns.filter((t: any) => t.type === 'expense').reduce((a: number, t: any) => a + t.amount, 0)
+
+      doc.setFillColor(245, 245, 255)
+      doc.roundedRect(14, 34, 56, 22, 3, 3, 'F')
+      doc.roundedRect(77, 34, 56, 22, 3, 3, 'F')
+      doc.roundedRect(140, 34, 56, 22, 3, 3, 'F')
+
+      doc.setTextColor(100, 100, 120)
+      doc.setFontSize(8)
+      doc.text('TOTAL INCOME',    42, 41, { align: 'center' })
+      doc.text('TOTAL EXPENSES', 105, 41, { align: 'center' })
+      doc.text('NET BALANCE',    168, 41, { align: 'center' })
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(34, 197, 94)
+      doc.text(`+£${income.toFixed(2)}`,   42, 50, { align: 'center' })
+      doc.setTextColor(239, 68, 68)
+      doc.text(`-£${expense.toFixed(2)}`, 105, 50, { align: 'center' })
+      doc.setTextColor(accentR, accentG, accentB)
+      doc.text(`£${(income - expense).toFixed(2)}`, 168, 50, { align: 'center' })
+
+      let y = 66
+      doc.setFillColor(accentR, accentG, accentB)
+      doc.rect(14, y, 182, 8, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.text('DATE',     18, y + 5.5)
+      doc.text('TITLE',    50, y + 5.5)
+      doc.text('CATEGORY', 110, y + 5.5)
+      doc.text('TYPE',     150, y + 5.5)
+      doc.text('AMOUNT',   182, y + 5.5, { align: 'right' })
+      y += 10
+
+      doc.setFont('helvetica', 'normal')
+      txns.forEach((t: any, i: number) => {
+        if (y > 270) { doc.addPage(); y = 20 }
+        if (i % 2 === 0) {
+          doc.setFillColor(248, 247, 255)
+          doc.rect(14, y - 2, 182, 8, 'F')
+        }
+        doc.setTextColor(60, 60, 80)
+        doc.setFontSize(8)
+        doc.text(new Date(t.date).toLocaleDateString('en-GB'), 18, y + 4)
+        doc.text((t.title || '').substring(0, 28),              50, y + 4)
+        doc.text((t.category || '').substring(0, 16),          110, y + 4)
+        doc.text(t.type || '',                                  150, y + 4)
+        t.type === 'income'
+          ? doc.setTextColor(34, 197, 94)
+          : doc.setTextColor(239, 68, 68)
+        doc.text(
+          `${t.type === 'income' ? '+' : '-'}£${Number(t.amount).toFixed(2)}`,
+          196, y + 4, { align: 'right' }
+        )
+        y += 8
+      })
+
+      doc.setTextColor(160, 160, 180)
+      doc.setFontSize(7)
+      doc.text('Generated by FinSight · Dissertation Project · Confidential', 105, 290, { align: 'center' })
+
+      doc.save(`finsight-statement-${now.toISOString().split('T')[0]}.pdf`)
+      showToast(`Exported ${txns.length} transactions as PDF`, 'success')
+    } catch {
+      showToast('Export failed — try again', 'error')
+    }
+  }
+
+  // ── Close export menu on outside click ─────────────────────────
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', paddingBottom: 32 }}>
@@ -271,14 +425,17 @@ export default function ProfilePage() {
       {/* ── Privacy ──────────────────────────────────────────── */}
       <SectionLabel icon="ti-eye-off" label="Privacy" />
       <div style={cardStyle}>
+
+        {/* GDPR JSON export */}
         <SecItem
           icon="ti-download"
           label={exporting ? 'Exporting...' : 'Export my data (GDPR)'}
           onClick={exporting ? undefined : handleDataExport}
         >
           {exporting
-            ? <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24"
-                   fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2" aria-hidden="true"
+                   style={{ animation: 'spin 1s linear infinite' }}>
                 <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
                 <path d="M12 2a10 10 0 0 1 10 10" />
               </svg>
@@ -286,6 +443,104 @@ export default function ProfilePage() {
                  style={{ color: 'var(--text-muted)', fontSize: 16 }} aria-hidden="true" />
           }
         </SecItem>
+
+        {/* CSV / PDF export dropdown */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '13px 0', borderBottom: '1px solid var(--border)',
+        }}>
+          <div style={{
+            width: 36, height: 36, flexShrink: 0, borderRadius: 10,
+            background: 'var(--bg-card2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <i className="ti ti-file-export"
+               style={{ fontSize: 17, color: 'var(--text-secondary)' }} aria-hidden="true" />
+          </div>
+          <p style={{ fontSize: 14, fontWeight: 500, flex: 1, color: 'var(--text-primary)' }}>
+            Export transactions
+          </p>
+
+          {/* Dropdown */}
+          <div style={{ position: 'relative' }} ref={exportMenuRef}>
+            <button
+              onClick={() => setShowExportMenu(m => !m)}
+              aria-label="Export transactions"
+              style={{
+                height: 34, padding: '0 12px', borderRadius: 10,
+                background: 'var(--bg-card2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
+                display: 'flex', alignItems: 'center', gap: 6,
+                cursor: 'pointer', fontSize: 13,
+              }}
+            >
+              <i className="ti ti-download" style={{ fontSize: 15 }} aria-hidden="true" />
+              Export
+              <i className="ti ti-chevron-down" style={{ fontSize: 12 }} aria-hidden="true" />
+            </button>
+
+            {showExportMenu && (
+              <div style={{
+                position: 'absolute', top: 40, right: 0,
+                background: 'var(--bg-card)', border: '1px solid var(--border)',
+                borderRadius: 12, padding: 6, zIndex: 100,
+                minWidth: 160,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              }}>
+                <button
+                  onClick={() => { exportToCSV(); setShowExportMenu(false) }}
+                  style={{
+                    width: '100%', padding: '9px 12px', borderRadius: 8,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    color: 'var(--text-primary)', fontSize: 13, textAlign: 'left',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    background: 'rgba(34,200,122,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <i className="ti ti-table" style={{ fontSize: 14, color: 'var(--green)' }} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>CSV</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>For spreadsheets</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { exportToPDF(); setShowExportMenu(false) }}
+                  style={{
+                    width: '100%', padding: '9px 12px', borderRadius: 8,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    color: 'var(--text-primary)', fontSize: 13, textAlign: 'left',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    background: 'rgba(124,92,252,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <i className="ti ti-file-type-pdf" style={{ fontSize: 14, color: 'var(--accent)' }} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>PDF</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Branded statement</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Delete account */}
         <SecItem
           icon="ti-trash"
           label="Delete account"
