@@ -13,9 +13,6 @@ Dissertation value:
   - Privacy-preserving: model trained on user's own data only
   - Hybrid AI: ML prediction + LLM explanation
 """
-
-import numpy as np
-import pandas as pd
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import logging
@@ -31,20 +28,20 @@ CATEGORIES = [
 
 # ── Feature Engineering ───────────────────────────────────────────
 
-def build_feature_matrix(transactions: list) -> Optional[pd.DataFrame]:
+def build_feature_matrix(transactions: list):
     """
     Convert raw transactions into ML feature matrix.
-
     Features per month:
       - Spending per category (9 features)
       - Total spending
       - Transaction count
       - Month number (seasonality)
       - Day-of-week distribution
-
     Returns DataFrame with shape (n_months, n_features)
     or None if insufficient data.
     """
+    import numpy as np  # lazy — only loads when insights route is called
+    import pandas as pd
     if not transactions:
         return None
 
@@ -86,11 +83,13 @@ def build_feature_matrix(transactions: list) -> Optional[pd.DataFrame]:
     return df
 
 
-def train_and_predict(df: pd.DataFrame) -> dict:
+def train_and_predict(df):
     """
     Train Random Forest on historical data and predict next month.
     Returns predictions + SHAP values.
     """
+    import numpy as np  # lazy
+    import pandas as pd
     from sklearn.ensemble import RandomForestRegressor
     import shap
 
@@ -175,7 +174,9 @@ def train_and_predict(df: pd.DataFrame) -> dict:
     }
 
 
-def _fallback_prediction(df: pd.DataFrame) -> dict:
+def _fallback_prediction(df) -> dict:
+    import numpy as np
+    import pandas as pd
     """
     Simple moving average fallback when insufficient data for ML.
     Used when user has < 2 months of data.
