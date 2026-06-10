@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { useToast } from '../components/ui/Toast'
 import { getAuthToken } from '../utils/getAuthToken'
+import ReviewSheet from '../components/ReviewSheet'
 
 const PALETTES = [
   { id: 'purple', color: '#7c5cfc', label: 'Violet' },
@@ -36,6 +37,7 @@ export default function ProfilePage() {
   const [fraudAlerts, setFraudAlerts]      = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [exporting, setExporting]          = useState(false)
+  const [reviewOpen, setReviewOpen]        = useState(false)
 
   const userName   = localStorage.getItem('fs_name')  || 'Your Account'
   const userEmail  = localStorage.getItem('fs_email') || ''
@@ -309,6 +311,9 @@ export default function ProfilePage() {
         <SecItem icon="ti-bell" label="Notifications">
           <i className="ti ti-arrow-right" style={{ color: 'var(--text-muted)', fontSize: 16 }} aria-hidden="true" />
         </SecItem>
+        <SecItem icon="ti-star" label="Rate FinSight" onClick={() => setReviewOpen(true)}>
+          <i className="ti ti-arrow-right" style={{ color: 'var(--text-muted)', fontSize: 16 }} aria-hidden="true" />
+        </SecItem>
         <SecItem
           icon="ti-help"
           label="Help & support"
@@ -369,6 +374,8 @@ export default function ProfilePage() {
           onConfirm={() => { setShowDeleteConfirm(false); handleSignOut() }}
         />
       )}
+
+      <ReviewSheet open={reviewOpen} onClose={() => setReviewOpen(false)} />
     </div>
   )
 }
