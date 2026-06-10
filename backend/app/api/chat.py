@@ -30,21 +30,27 @@ from app.core.config import config
 from app.core.logging import logger
 from app.core.security import require_auth
 from app.db.mongo import get_db
-from app.services.groq_client import GroqLLMClient
-from fintech_llm_guard import GuardrailPipeline
 from datetime import datetime, timezone
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api")
 
-# ── Initialise once at module level ───────────────────────────────
-# Both objects are stateless and safe to share across requests
-_groq_client = GroqLLMClient()
-_pipeline    = GuardrailPipeline(llm_client=_groq_client)
+# ── Lazy initialisation — only loads on first chat request ────────
+# Prevents spacy/guardrail models eating 512MB RAM at startup
+_groq_client = None
+_pipeline    = None
+
+def get_pipeline():
+    """Returns the guardrail pipeline, initialising it on first call."""
+    global _groq_client, _pipeline
+    if _pipeline is None:
+        from fintech_llm_guard import GuardrailPipeline
+        from app.services.groq_client import GroqLLMClient
+        _groq_client = GroqLLMClient()
+        _pipeline    = GuardrailPipeline(llm_client=_groq_client)
+    return _pipeline
 
 # Max messages to keep in DB per user
-MAX_HISTORY    = 100
-# Max messages to send to Groq per request
-CONTEXT_WINDOW = 20
+MAX_HISTORY = 100
 
 
 def _fmt_message(doc: dict) -> dict:
@@ -199,7 +205,7 @@ def chat():
             "msg_preview": latest_user_message[:60],
         })
 
-        result = _pipeline.process(
+        result = get_pipeline().process(
             user_message=latest_user_message,
             transactions=transactions,
             session_id=user_id,   # use user_id as session for canary tracking
