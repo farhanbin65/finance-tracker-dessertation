@@ -162,6 +162,54 @@ def clear_history():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ── DELETE /api/chat/message/<message_id> ─────────────────────────
+@chat_bp.route("/chat/message/<message_id>", methods=["DELETE"])
+@require_auth
+def delete_message(message_id):
+    """
+    DELETE /api/chat/message/:id
+    Deletes a user message AND its paired AI response (same timestamp).
+    Users can only delete their own messages.
+    """
+    user_id = g.current_user_id
+    db      = get_db()
+    try:
+        from bson import ObjectId
+        # ── Find the message ──────────────────────────
+        try:
+            obj_id = ObjectId(message_id)
+        except Exception:
+            return jsonify({"error": "Invalid message ID"}), 400
+
+        message = db.chat_messages.find_one({
+            "_id":     obj_id,
+            "user_id": user_id,  # security — can only delete own messages
+        })
+        if not message:
+            return jsonify({"error": "Message not found"}), 404
+
+        # ── Delete both user + assistant messages at same timestamp ──
+        # They are always saved together with identical timestamps
+        timestamp = message["timestamp"]
+        result = db.chat_messages.delete_many({
+            "user_id":   user_id,
+            "timestamp": timestamp,
+        })
+
+        logger.info("Chat message pair deleted", extra={
+            "user_id":       user_id,
+            "message_id":    message_id,
+            "deleted_count": result.deleted_count,
+        })
+
+        return jsonify({
+            "message":       "Message deleted",
+            "deleted_count": result.deleted_count,
+        }), 200
+
+    except Exception as e:
+        logger.error("Delete message error", extra={"error": str(e)})
+        return jsonify({"error": "Could not delete message"}), 500
 
 # ── POST /api/chat ────────────────────────────────────────────────
 
@@ -239,8 +287,8 @@ def chat():
         # ── Safe response — save to MongoDB ───────────
         reply = result.response
         now   = datetime.now(timezone.utc)
-
-        db.chat_messages.insert_many([
+        # Save both messages — same timestamp so we can delete as a pair
+        insert_result = db.chat_messages.insert_many([
             {
                 "user_id":   user_id,
                 "role":      "user",
@@ -256,6 +304,8 @@ def chat():
                 "model":     config.GROQ_MODEL,
             },
         ])
+        # Return user message ID so frontend can delete later
+        user_message_id = str(insert_result.inserted_ids[0])
 
         # ── Prune old messages if over limit ──────────
         total_count = db.chat_messages.count_documents({"user_id": user_id})
@@ -288,6 +338,7 @@ def chat():
 
         return jsonify({
             "reply":        reply,
+            "message_id":   user_message_id,
             # ── Research metadata (useful for dissertation evidence) ──
             "guardrail": {
                 "blocked":      False,

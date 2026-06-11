@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { getAuthToken } from '../utils/getAuthToken'
+import { useToast } from '../components/ui/Toast'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -21,6 +22,7 @@ function useIsDesktop() {
 
 // ── Types ──────────────────────────────────────────────────────────
 interface Message {
+  id?: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
@@ -137,6 +139,7 @@ function ClearConfirmDialog({ onConfirm, onCancel }: {
 // ══════════════════════════════════════════════════════════════════
 export default function ChatPage() {
   const isDesktop = useIsDesktop()
+  const { showToast } = useToast()
   // ✅ Read name from localStorage — not hardcoded
   const userName  = localStorage.getItem('fs_name') || 'there'
   const firstName = userName.split(' ')[0]
@@ -213,6 +216,7 @@ export default function ChatPage() {
 
       if (data.messages?.length > 0) {
         const loaded: Message[] = data.messages.map((m: any) => ({
+          id:        m.id,
           role:      m.role,
           content:   m.content,
           timestamp: new Date(m.timestamp),
@@ -248,6 +252,12 @@ export default function ChatPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
 
+      setMessages(prev => prev.map((m, i) =>
+        i === prev.length - 1 && m.role === 'user'
+          ? { ...m, id: data.message_id }
+          : m
+      ))
+      // Add assistant response
       setMessages(prev => [...prev, {
         role: 'assistant', content: data.reply, timestamp: new Date(),
       }])
@@ -271,6 +281,20 @@ export default function ChatPage() {
     } finally {
       setLoading(false)
       inputRef.current?.focus()
+    }
+  }
+
+  async function handleDeleteMessage(msgId: string, index: number) {
+    try {
+      const token = await getAuthToken()
+      await fetch(`${import.meta.env.VITE_API_URL}/api/chat/message/${msgId}`, {
+        method:  'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      // Remove user message + next assistant message from UI
+      setMessages(prev => prev.filter((_, i) => i !== index && i !== index + 1))
+    } catch {
+      showToast('Could not delete message', 'error')
     }
   }
 
@@ -350,7 +374,11 @@ export default function ChatPage() {
               </div>
 
               {messages.map((msg, i) => (
-                <MessageBubble key={i} message={msg} />
+                <MessageBubble
+                  message={msg}
+                  index={i}
+                  onDelete={handleDeleteMessage}
+                />
               ))}
 
               {loading && <TypingIndicator />}
@@ -626,11 +654,18 @@ function ContextPill({ icon, label, value, color }: {
 }
 
 // ── Message bubble ─────────────────────────────────────────────────
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({
+  message, index, onDelete,
+}: {
+  message:  Message
+  index:    number
+  onDelete: (id: string, index: number) => void
+}) {
+  const [hovered, setHovered] = useState(false)
   const isUser = message.role === 'user'
   const isTip  = message.isTip
 
-  // ── Tip card ─────────────────────────────────────────────────────
+  // ── Tip card ───────────────────────────────────────────────────
   if (isTip) {
     return (
       <div style={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
@@ -655,17 +690,59 @@ function MessageBubble({ message }: { message: Message }) {
     )
   }
 
-  // ── User bubble ───────────────────────────────────────────────────
+  // ── User bubble ────────────────────────────────────────────────
   if (isUser) {
     return (
-      <div style={{ alignSelf: 'flex-end', maxWidth: '80%' }}>
-        <div style={{
-          background: 'var(--accent)', color: '#fff',
-          borderRadius: '18px 4px 18px 18px',
-          padding: '12px 16px', fontSize: 14, lineHeight: 1.6,
-          wordBreak: 'break-word',
-        }}>
-          {message.content}
+      <div
+        style={{ alignSelf: 'flex-end', maxWidth: '80%' }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+          {/* Delete button — only shows on hover if message has an ID */}
+          {hovered && message.id && (
+            <button
+              onClick={() => onDelete(message.id!, index)}
+              aria-label="Delete message"
+              title="Delete this message and its reply"
+              style={{
+                width:      28,
+                height:     28,
+                borderRadius: '50%',
+                background: 'rgba(255,79,100,0.1)',
+                border:     '1px solid rgba(255,79,100,0.2)',
+                cursor:     'pointer',
+                display:    'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transition: 'all .15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,79,100,0.2)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,79,100,0.1)'}
+            >
+              {/* SVG trash icon */}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="#ff4f64" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                   aria-hidden="true">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4h6v2" />
+              </svg>
+            </button>
+          )}
+          <div style={{
+            background:   'var(--accent)',
+            color:        '#fff',
+            borderRadius: '18px 4px 18px 18px',
+            padding:      '12px 16px',
+            fontSize:     14,
+            lineHeight:   1.6,
+            wordBreak:    'break-word',
+          }}>
+            {message.content}
+          </div>
         </div>
         <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3, textAlign: 'right' }}>
           {formatTime(message.timestamp)}
@@ -674,24 +751,28 @@ function MessageBubble({ message }: { message: Message }) {
     )
   }
 
-  // ── AI bubble ─────────────────────────────────────────────────────
+  // ── AI bubble ──────────────────────────────────────────────────
   return (
     <div style={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        {/* ✅ Vector avatar — no emoji */}
         <div style={{
           width: 28, height: 28, borderRadius: '50%', flexShrink: 0, marginTop: 2,
           background: 'var(--accent-light)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <i className="ti ti-brain" style={{ fontSize: 13, color: 'var(--accent)' }} aria-hidden="true" />
+          <i className="ti ti-brain"
+             style={{ fontSize: 13, color: 'var(--accent)' }} aria-hidden="true" />
         </div>
         <div>
           <div style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            background:   'var(--bg-card)',
+            border:       '1px solid var(--border)',
             borderRadius: '4px 18px 18px 18px',
-            padding: '12px 16px', fontSize: 14, lineHeight: 1.7,
-            color: 'var(--text-primary)', wordBreak: 'break-word',
+            padding:      '12px 16px',
+            fontSize:     14,
+            lineHeight:   1.7,
+            color:        'var(--text-primary)',
+            wordBreak:    'break-word',
           }}>
             {message.content.split('\n').map((line, i, arr) => (
               <span key={i}>
