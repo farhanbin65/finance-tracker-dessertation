@@ -42,4 +42,3 @@ shap==0.44.1
 scikit-learn==1.4.2
 numpy==1.26.4
 pandas==2.2.2
-fintech-llm-guard==0.3.0
