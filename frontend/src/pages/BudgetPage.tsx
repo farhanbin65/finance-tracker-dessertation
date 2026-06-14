@@ -730,7 +730,7 @@ function BudgetModal({ mode, existing, onClose, onSaved }: {
               Saving...
             </>
           ) : mode === 'edit' ? 'Update budget' : 'Add category'}
-        </button>
+        </button> 
       </div>
     </div>
   )
