@@ -106,7 +106,18 @@ def get_transactions(user_id: str, filters: TransactionFilters) -> dict:
         "offset": filters.offset,
         "has_more": (filters.offset + filters.limit) < total
     }
-
+def get_all_transactions_for_analysis(user_id: str) -> list[dict]:
+    """
+    Fetch ALL active (non-deleted) transactions for a user, unpaginated.
+    Used by anomaly detection and forecasting, which need the full
+    history to compute reliable statistics — not a paginated slice.
+    """
+    db = get_db()
+    docs = db.transactions.find({
+        "user_id": user_id,
+        "deleted": {"$ne": True}
+    })
+    return [_format_transaction(doc) for doc in docs]
 
 def get_transaction_by_id(user_id: str, transaction_id: str) -> dict:
     """Fetch a single transaction — only if it belongs to the current user."""

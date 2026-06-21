@@ -6,6 +6,8 @@ All routes are protected with @require_auth.
 
 from flask import Blueprint, request, jsonify, g
 from pydantic import ValidationError
+from app.services.anomaly_detector import detect_anomalies
+
 
 from app.services.transaction_service import (
     create_transaction,
@@ -14,6 +16,7 @@ from app.services.transaction_service import (
     update_transaction,
     delete_transaction,
     get_spending_summary,
+    get_all_transactions_for_analysis,
     TransactionError
 )
 from app.models.transaction import (
@@ -165,8 +168,27 @@ def monthly_summary():
 
     except Exception as e:
         return jsonify({"error": "Failed to generate summary."}), 500
+    
+@transactions_bp.route("/anomalies", methods=["GET"])
+@require_auth
+def get_anomalies():
+    """
+    GET /api/transactions/anomalies
+    Returns flagged unusual transactions for the logged-in user,
+    per AT2 statistical threshold method (mean + 2 SD).
+    """
+    try:
+        transactions = get_all_transactions_for_analysis(g.current_user_id)
+        anomalies = detect_anomalies(transactions)
 
+        return jsonify({
+            "anomalies": anomalies,
+            "count": len(anomalies)
+        }), 200
 
+    except Exception as e:
+        return jsonify({"error": "Failed to check anomalies."}), 500
+    
 @transactions_bp.route("/meta/categories", methods=["GET"])
 def get_categories():
     """
