@@ -14,7 +14,7 @@
 ![Vercel](https://img.shields.io/badge/deployed-vercel-black)
 ![PyPI](https://img.shields.io/badge/pypi-fintech--llm--guard-blueviolet)
 
-A production-grade personal finance web application built as a university dissertation project. FinSight combines secure transaction tracking, intelligent budget planning, savings goal management, explainable AI spending predictions, and a privacy-aware financial assistant — all within a modern, accessible, mobile-first interface.
+A production-grade personal finance web application built as a university dissertation project. FinSight combines secure transaction tracking, intelligent budget planning, savings goal management, explainable AI spending predictions, statistical anomaly detection, proactive alerting, and a privacy-aware financial assistant — all within a modern, accessible, mobile-first interface.
 
 ## Live Demo
 
@@ -42,7 +42,7 @@ A production-grade personal finance web application built as a university disser
 
 ## Overview
 
-FinSight addresses a clear gap in the personal finance market: most budgeting tools are either too complex for everyday users or too shallow for meaningful financial insight, and almost none explain their predictions in a way users can trust. FinSight sits in the middle — offering bank-grade security, real-time spending analysis, explainable AI forecasting, and a financial assistant that speaks plain English.
+FinSight addresses a clear gap in the personal finance market: most budgeting tools are either too complex for everyday users or too shallow for meaningful financial insight, and almost none explain their predictions or proactively flag unusual activity in a way users can trust. FinSight sits in the middle — offering bank-grade security, real-time spending analysis, explainable AI forecasting, statistical anomaly detection, and a financial assistant that speaks plain English.
 
 The project was designed and built to demonstrate full-stack engineering competence, secure system design, applied machine learning, and human-centred product thinking at a dissertation level.
 
@@ -61,6 +61,8 @@ The project was designed and built to demonstrate full-stack engineering compete
 | AI Financial Assistant | Groq-powered Llama 3.1 chatbot with personal financial context and persistent, MongoDB-backed chat history |
 | Chat Message Management | Per-message deletion of a user message and its paired AI response, plus full history clearing |
 | Explainable Spending Predictions | Random Forest regression forecasting with SHAP feature-attribution explanations, showing which categories drove a prediction |
+| Anomaly Detection | Statistical threshold detection (mean + 2 standard deviations) flagging unusual transactions per category, with human-readable explanations |
+| Intelligent Alerts | Aggregated alert feed combining budget overspending, transaction anomalies and at-risk savings goals, surfaced on the dashboard |
 | Data Export | CSV (Excel-ready, UTF-8 BOM) and branded PDF statement export of transaction history |
 | GDPR Data Portability | Full personal data export under Article 20, covering profile, transactions, budgets, goals and a redacted audit log |
 | Admin Dashboard | Platform-wide analytics across all users, account suspension, theme and display settings |
@@ -93,6 +95,7 @@ flowchart LR
     E["AI Chat"]
     F["Profile / Security"]
     G2["Insights / Predictions"]
+    H2["Alerts Banner"]
   end
 
   subgraph Auth["Authentication Layer"]
@@ -107,6 +110,7 @@ flowchart LR
     L["goals routes"]
     M["chat routes"]
     N2["insights routes"]
+    O2["alerts routes"]
   end
 
   subgraph AI["AI Layer"]
@@ -117,6 +121,7 @@ flowchart LR
   subgraph ML["Insights Layer"]
     P2["Random Forest Regressor"]
     Q2["SHAP Explainer"]
+    R2["Anomaly Detector - mean plus 2SD"]
   end
 
   subgraph DB["Database Layer"]
@@ -137,6 +142,8 @@ flowchart LR
   D --> L
   E --> M
   G2 --> N2
+  H2 --> O2
+  O2 --> R2
 
   M -->|"prompt + context"| N
   N --> O
@@ -145,8 +152,10 @@ flowchart LR
   N2 --> P2
   P2 --> Q2
   Q2 -->|"feature attribution"| N2
+  N2 --> R2
+  R2 -->|"flagged transactions"| O2
 
-  I & J & K & L & M & N2 --> P
+  I & J & K & L & M & N2 & O2 --> P
   P --> Q & R & S & T & U2
 ```
 
@@ -215,6 +224,39 @@ sequenceDiagram
   MongoDB-->>Backend: deleted_count: 1
   Backend-->>Frontend: 200 OK - success
   Frontend-->>User: Show toast + remove from list
+```
+
+---
+
+### Sequence — Forecast and Alert Generation
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User
+  participant Frontend as React Frontend
+  participant Backend as Flask Backend
+  participant ML as ML Service
+  participant MongoDB as MongoDB Atlas
+
+  User->>Frontend: Open Insights page
+  Frontend->>Backend: POST /api/insights/predict + Bearer JWT
+  Backend->>MongoDB: Fetch active (non-deleted) transactions
+  MongoDB-->>Backend: Transaction history
+  Backend->>Backend: Check data sufficiency
+  Backend->>ML: build_feature_matrix + train_and_predict
+  ML-->>Backend: Predicted total, SHAP values, confidence
+  Backend->>Backend: detect_anomalies (mean + 2 SD per category)
+  Backend->>ML: generate_nl_explanation (Groq + SHAP context)
+  ML-->>Backend: Plain-language explanation
+  Backend-->>Frontend: Prediction + anomalies + explanation
+  Frontend-->>User: Render forecast, drivers and risk badge
+
+  User->>Frontend: Open Dashboard
+  Frontend->>Backend: GET /api/alerts + Bearer JWT
+  Backend->>Backend: Aggregate budget status, anomalies, goal deadlines
+  Backend-->>Frontend: Sorted alert feed (high severity first)
+  Frontend-->>User: Render alert banners
 ```
 
 ---
@@ -346,6 +388,7 @@ PyPI package: `pip install fintech-llm-guard`
 | scikit-learn | Random Forest regression for spending forecasts |
 | SHAP | Feature-attribution explanations for predictions |
 | pandas / NumPy | Feature engineering, lazily loaded to control memory footprint |
+| Statistical anomaly detection | Mean + 2 standard deviation threshold per category, no training required |
 | fintech-llm-guard | LLM guardrail middleware — prompt-injection detection, PII redaction, output validation (local/research environment) |
 
 ### Infrastructure
@@ -369,11 +412,12 @@ finance-tracker-dessertation/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── auth.py           # Register, login, Auth0 callback, GDPR export
-│   │   │   ├── transactions.py   # CRUD + category filtering
+│   │   │   ├── transactions.py   # CRUD + category filtering + anomaly check
 │   │   │   ├── budgets.py        # Monthly budget management
 │   │   │   ├── goals.py          # Savings goals + deposits
 │   │   │   ├── chat.py           # AI chat, history, message deletion
 │   │   │   ├── insights.py       # SHAP-based spending predictions
+│   │   │   ├── alerts.py         # Aggregated overspending, anomaly and savings-risk alerts
 │   │   │   └── admin.py          # Platform analytics, user management
 │   │   ├── core/
 │   │   │   ├── config.py         # Environment configuration
@@ -390,7 +434,10 @@ finance-tracker-dessertation/
 │   │   ├── services/
 │   │   │   ├── auth_service.py   # Auth business logic
 │   │   │   ├── budget_service.py # Budget business logic
+│   │   │   ├── transaction_service.py # Transaction business logic
+│   │   │   ├── goal_service.py   # Goal business logic
 │   │   │   ├── ml_service.py     # Forecasting + SHAP explainability
+│   │   │   ├── anomaly_detector.py # Statistical threshold anomaly detection
 │   │   │   └── groq_client.py    # Groq LLM adapter
 │   │   └── main.py               # App entrypoint
 │   ├── .env.example
@@ -553,7 +600,8 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 | GET | `/api/transactions` | List all transactions |
 | POST | `/api/transactions` | Create transaction |
 | PUT | `/api/transactions/:id` | Update transaction |
-| DELETE | `/api/transactions/:id` | Delete transaction |
+| DELETE | `/api/transactions/:id` | Delete transaction (soft delete) |
+| GET | `/api/transactions/anomalies` | Statistical anomaly detection on the user's transaction history |
 
 ### Budgets
 
@@ -586,7 +634,13 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/insights/predict` | Generate next-month spending forecast with SHAP explanation |
+| POST | `/api/insights/predict` | Generate next-month spending forecast with SHAP explanation and flagged anomalies |
+
+### Alerts
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/alerts` | Aggregated alert feed — overspending, anomalies and at-risk savings goals, sorted by severity |
 
 ### Admin
 
@@ -620,7 +674,7 @@ This project was developed as a final-year Computing Systems dissertation at Uls
 | Full-stack development | React frontend, Flask REST API, MongoDB database |
 | Security engineering | JWT, bcrypt, rate limiting, OWASP alignment |
 | AI integration | Groq Llama 3.1 with financial context injection |
-| Explainable AI | SHAP-based feature attribution for spending forecasts |
+| Explainable AI | SHAP-based feature attribution for spending forecasts, statistical anomaly detection, aggregated proactive alerting — full AT2 Must Have coverage |
 | Research contribution | fintech-llm-guard PyPI package and accompanying GSAM 2026 paper submission |
 | System design | Modular blueprint architecture, factory pattern |
 | DevOps | Docker, GitHub Actions CI/CD, cloud deployment |
@@ -632,6 +686,7 @@ This project was developed as a final-year Computing Systems dissertation at Uls
 
 - Restore the on-device guardrail pipeline in production via service decomposition, separating the lightweight API from the memory-intensive ML and NLP stack
 - Formal adversarial evaluation of fintech-llm-guard — prompt-injection block rate, PII leakage reduction, response-quality trade-off — for the GSAM 2026 paper
+- What-if spending simulation (e.g. model the effect of a percentage reduction in a category)
 - Open Banking integration via TrueLayer, read-only and consent-gated
 - Federated learning for spending forecasting, improving the global model without centralising raw transaction data
 - Push notifications for budget alerts
