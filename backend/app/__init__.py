@@ -12,6 +12,7 @@ from flask_limiter.util import get_remote_address
 from app.core.config import config
 from app.core.logging import logger
 from app.db.mongo import get_db, ping_db
+from app.api.alerts import alerts_bp
 
 
 
@@ -63,6 +64,7 @@ def create_app() -> Flask:
     app.register_blueprint(chat_bp)
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
     app.register_blueprint(insights_bp)
+    app.register_blueprint(alerts_bp)
     # ── Health Check Endpoint ──────────────────────────────
     @app.route("/health", methods=["GET"])
     def health():
