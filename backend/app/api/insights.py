@@ -11,6 +11,8 @@ from flask import Blueprint, jsonify, g
 from app.core.security import require_auth
 from app.db.mongo import get_db
 from app.core.config import config
+from app.services.transaction_service import get_all_transactions_for_analysis
+from app.services.anomaly_detector import detect_anomalies
 
 insights_bp = Blueprint("insights", __name__, url_prefix="/api/insights")
 
@@ -44,10 +46,8 @@ def predict_spending():
 
         db     = get_db()
         uid    = g.current_user_id
-
-        # Fetch user's full transaction history
-        transactions = list(db.transactions.find({"user_id": uid}))
-
+        # Fetch user's full transaction history — excludes soft-deleted records
+        transactions = get_all_transactions_for_analysis(uid)
         if not transactions:
             return jsonify({
                 "error":   "insufficient_data",
@@ -90,6 +90,11 @@ def predict_spending():
         )
 
         prediction["currency"] = currency
+
+        # AT2 Diagram 5: anomaly check happens alongside the forecast
+        anomalies = detect_anomalies(transactions)
+        prediction["anomaly_count"] = len(anomalies)
+        prediction["anomalies"] = anomalies[:5]  # cap payload — most severe first
 
         return jsonify(prediction), 200
 
