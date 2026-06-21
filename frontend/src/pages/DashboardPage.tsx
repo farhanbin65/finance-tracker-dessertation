@@ -28,6 +28,13 @@ interface Transaction {
   id: string; title: string; amount: number
   type: 'income' | 'expense'; category: string; date: string
 }
+interface Alert {
+  type: 'overspending' | 'anomaly' | 'savings_risk'
+  severity: 'high' | 'medium' | 'low'
+  category: string
+  message: string
+  related_id: string
+}
 
 const CAT_COLORS: Record<string, string> = {
   Rent: '#7c5cfc', Food: '#ff9f43', Shopping: '#0ea5e9',
@@ -176,6 +183,7 @@ export default function DashboardPage() {
   const [loading, setLoading]           = useState(true)
   const [aiTip, setAiTip]               = useState('')
   const [aiTipLoading, setAiTipLoading] = useState(true)
+  const [alerts, setAlerts] = useState<Alert[]>([])
 
   const userName  = localStorage.getItem('fs_name') || 'there'
   const firstName = userName.split(' ')[0]
@@ -193,19 +201,21 @@ export default function DashboardPage() {
       setLoading(true)
       const token = await getToken()
       const h = { Authorization: `Bearer ${token}` }
-      const [sRes, bRes, gRes, tRes] = await Promise.all([
+      const [sRes, bRes, gRes, tRes, aRes] = await Promise.all([
         fetch(`${API_URL}/api/transactions/summary/monthly?year=${now.getFullYear()}&month=${now.getMonth() + 1}`, { headers: h }),
         fetch(`${API_URL}/api/budgets`, { headers: h }),
         fetch(`${API_URL}/api/goals`, { headers: h }),
         fetch(`${API_URL}/api/transactions?limit=5`, { headers: h }),
+        fetch(`${API_URL}/api/alerts`, { headers: h }),
       ])
-      const [sData, bData, gData, tData] = await Promise.all([
-        sRes.json(), bRes.json(), gRes.json(), tRes.json(),
+      const [sData, bData, gData, tData, aData] = await Promise.all([
+        sRes.json(), bRes.json(), gRes.json(), tRes.json(), aRes.json(),
       ])
       setSummary(sData.total_income !== undefined ? sData : null)
       setBudgets(bData.budgets || [])
       setGoals((gData.goals || []).slice(0, 3))
       setTransactions(tData.transactions || [])
+      setAlerts(aData.alerts || [])
       setLoading(false)
       fetchAiTip(token, sData, bData)
     } catch {
@@ -280,6 +290,32 @@ export default function DashboardPage() {
       </p>
     </div>
   )
+
+  // ── Alerts banner ──────────────────────────────────────────────
+  const severityStyle: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+    high:   { bg: 'rgba(220, 38, 38, 0.08)',  border: 'rgba(220, 38, 38, 0.25)',  text: '#b91c1c', icon: '⚠' },
+    medium: { bg: 'rgba(217, 119, 6, 0.08)',  border: 'rgba(217, 119, 6, 0.25)',  text: '#b45309', icon: '⚠' },
+    low:    { bg: 'rgba(37, 99, 235, 0.08)',  border: 'rgba(37, 99, 235, 0.25)',  text: '#1d4ed8', icon: 'ⓘ' },
+  }
+  const AlertsBanner = alerts.length > 0 ? (
+    <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {alerts.slice(0, 3).map((a, i) => {
+        const s = severityStyle[a.severity] || severityStyle.medium
+        return (
+          <div key={i} style={{
+            background: s.bg, border: `1px solid ${s.border}`,
+            borderRadius: 12, padding: '10px 14px',
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+          }}>
+            <span style={{ fontSize: 14, color: s.text, lineHeight: 1.4 }} aria-hidden="true">{s.icon}</span>
+            <p style={{ fontSize: 13, color: s.text, lineHeight: 1.45, margin: 0 }}>
+              {a.message}
+            </p>
+          </div>
+        )
+      })}
+    </div>
+  ) : null
 
   // ── Balance hero ───────────────────────────────────────────────
   const BalanceHero = summary ? (
@@ -545,6 +581,7 @@ export default function DashboardPage() {
         <style>{`@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
 
         {GreetingBlock}
+        {AlertsBanner}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
           {/* Left column */}
@@ -570,6 +607,7 @@ export default function DashboardPage() {
     <div style={{ paddingBottom: 24 }}>
       <style>{`@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
       {GreetingBlock}
+      {AlertsBanner}
       {BalanceHero}
       {QuickStats}
       {SpendingBreakdown}
