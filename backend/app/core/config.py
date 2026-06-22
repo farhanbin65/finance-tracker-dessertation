@@ -40,6 +40,15 @@ class Config:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = "llama-3.1-8b-instant"
 
+    # ── LLM Provider switch ────────────────────────────────
+    # Set LLM_PROVIDER=ollama in .env for local dissertation demo
+    # Set LLM_PROVIDER=groq  in .env for cloud/portfolio deployment
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "groq")
+
+    # ── Ollama (local LLM) ─────────────────────────────────
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL:    str = os.getenv("OLLAMA_MODEL",    "llama3.1")
+
     # ── Auth0 ───────────────────────────────────────────────
     AUTH0_DOMAIN: str = os.getenv("AUTH0_DOMAIN", "dev-gomvag3j4o0jyjxx.us.auth0.com")
     AUTH0_CLIENT_ID: str = os.getenv("AUTH0_CLIENT_ID", "Y4ZhSTH65JR8vzyZE4SH9NbKjQrjpPIg")

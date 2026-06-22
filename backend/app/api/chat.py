@@ -17,14 +17,26 @@ from datetime import datetime, timezone
 chat_bp = Blueprint("chat", __name__, url_prefix="/api")
 
 # ── Lazy Groq client ──────────────────────────────────────────────
-_groq_client = None
+# NEW — provider switcher
+_llm_client = None
 
-def get_groq_client():
-    global _groq_client
-    if _groq_client is None:
-        from app.services.groq_client import GroqLLMClient
-        _groq_client = GroqLLMClient()
-    return _groq_client
+def get_llm_client():
+    """
+    Returns the active LLM client based on LLM_PROVIDER env var.
+    groq  → GroqLLMClient  (cloud, used for live deployment)
+    ollama → OllamaLLMClient (local, used for dissertation demo)
+    Both share the same .chat(messages) -> str interface.
+    """
+    global _llm_client
+    if _llm_client is None:
+        from app.core.config import config
+        if config.LLM_PROVIDER == "ollama":
+            from app.services.ollama_client import OllamaLLMClient
+            _llm_client = OllamaLLMClient()
+        else:
+            from app.services.groq_client import GroqLLMClient
+            _llm_client = GroqLLMClient()
+    return _llm_client
 
 MAX_HISTORY = 100
 
@@ -117,8 +129,9 @@ Recent transactions:
             {"role": "system", "content": system_prompt},
             *[{"role": m["role"], "content": m["content"]} for m in messages],
         ]
-        groq = get_groq_client()
-        reply = groq.chat(messages=groq_messages)
+  
+        llm = get_llm_client()
+        reply = llm.chat(messages=groq_messages)
 
         # ── Save to MongoDB ───────────────────────────
         now = datetime.now(timezone.utc)
