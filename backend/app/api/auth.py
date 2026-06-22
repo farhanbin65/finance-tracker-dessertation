@@ -7,6 +7,7 @@ All business logic is in auth_service.py.
 from flask import Blueprint, request, jsonify
 from pydantic import ValidationError
 
+from app.core.limiter import limiter
 from app.services.auth_service import register_user, login_user, get_current_user, AuthError
 from app.models.user import UserRegisterRequest, UserLoginRequest
 from app.core.security import require_auth
@@ -18,6 +19,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("5 per minute")
 def register():
     """
     POST /api/auth/register
@@ -44,6 +46,7 @@ def register():
 
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("10 per minute")
 def login():
     """
     POST /api/auth/login
@@ -73,6 +76,7 @@ def login():
         return jsonify({"error": "Login failed. Please try again."}), 500
 
 @auth_bp.route("/auth0-login", methods=["POST"])
+@limiter.limit("10 per minute")
 def auth0_login():
     """
     POST /api/auth/auth0-login

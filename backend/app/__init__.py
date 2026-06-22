@@ -6,8 +6,6 @@ Factory pattern allows easy testing with different configs.
 
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 from app.core.config import config
 from app.core.logging import logger
@@ -42,12 +40,8 @@ def create_app() -> Flask:
     )
 
     # ── Rate Limiting ──────────────────────────────────────
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=[config.RATE_LIMIT_DEFAULT],
-        storage_uri="memory://",  # Use Redis in production
-    )
+    from app.core.limiter import limiter
+    limiter.init_app(app)
 
     # ── Register Blueprints (Routes) ───────────────────────
     from app.api.auth import auth_bp
