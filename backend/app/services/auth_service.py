@@ -12,6 +12,7 @@ from app.db.mongo import get_db
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.core.logging import logger
 from app.models.user import UserRegisterRequest, UserLoginRequest
+from app.core.encryption import encrypt_field, decrypt_field, hash_email_for_lookup
 
 
 class AuthError(Exception):
@@ -35,7 +36,7 @@ def register_user(data: UserRegisterRequest) -> dict:
     db = get_db()
 
     # Step 1: Check for duplicate email
-    existing = db.users.find_one({"email": data.email.lower()})
+    existing = db.users.find_one({"email_hash": hash_email_for_lookup(data.email)})
     if existing:
         raise AuthError("An account with this email already exists.", 409)
 
@@ -44,8 +45,9 @@ def register_user(data: UserRegisterRequest) -> dict:
 
     # Step 3: Build and insert user document
     user_doc = {
-        "full_name": data.full_name.strip(),
-        "email": data.email.lower(),
+        "full_name":   encrypt_field(data.full_name.strip()),
+        "email":       encrypt_field(data.email.lower()),
+        "email_hash":  hash_email_for_lookup(data.email),
         "password_hash": password_hash,
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
@@ -88,7 +90,7 @@ def login_user(data: UserLoginRequest) -> dict:
     db = get_db()
 
     # Step 1: Find user (always lowercase email)
-    user = db.users.find_one({"email": data.email.lower()})
+    user = db.users.find_one({"email_hash": hash_email_for_lookup(data.email)})
 
     if user and user.get("is_banned"):
         raise AuthError("This account has been suspended. Contact support.", 403)
@@ -116,13 +118,13 @@ def login_user(data: UserLoginRequest) -> dict:
     # Get role — defaults to 'user' if not set
     role = user.get("role", "user")
 
-    return {
-        "access_token": create_access_token(user_id, user["email"], role),
+    return {    
+        "access_token": create_access_token(user_id, decrypt_field(user["email"]), role),
         "refresh_token": create_refresh_token(user_id),
         "user": {
             "id":        user_id,
-            "full_name": user["full_name"],
-            "email":     user["email"],
+            "full_name": decrypt_field(user["full_name"]),
+            "email":     decrypt_field(user["email"]),
             "currency":  user.get("currency", "GBP"),
             "role":      role,
         }
@@ -142,7 +144,7 @@ def get_current_user(user_id: str) -> dict:
 
     return {
         "id": str(user["_id"]),
-        "full_name": user["full_name"],
+        "full_name": decrypt_field(user["full_name"]),
         "email": user["email"],
         "currency": user.get("currency", "GBP"),
         "mfa_enabled": user.get("mfa_enabled", False),
