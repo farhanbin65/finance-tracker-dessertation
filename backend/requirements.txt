@@ -42,4 +42,4 @@ shap==0.44.1
 scikit-learn==1.4.2
 numpy==1.26.4
 pandas==2.2.2
-cryptography>=42.0.0cryptography>=42.0.0
+cryptography>=42.0.0
