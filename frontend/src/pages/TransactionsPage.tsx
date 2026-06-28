@@ -779,7 +779,7 @@ export default function TransactionsPage() {
       {showAddModal && (
         <AddTransactionModal
           onClose={() => setShowAddModal(false)}
-          onAdded={() => { setShowAddModal(false); fetchTransactions(); showToast('Transaction added successfully!', 'success') }}
+          onAdded={() => { setShowAddModal(false); fetchTransactions() }}
         />
       )}
 
@@ -925,7 +925,8 @@ function TransactionItem({ tx, onEdit, onDelete }: {
 }
 
 // ── Add Transaction Modal ──────────────────────────────────────────
-const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Subscriptions', 'Health', 'Rent', 'Utilities', 'Income', 'Other']
+const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Subscriptions', 'Health', 'Rent', 'Utilities', 'Other']
+const INCOME_CATEGORIES  = ['Salary', 'Freelance', 'Business', 'Investment', 'Gift', 'Other']
 
 function AddTransactionModal({ onClose, onAdded }: {
   onClose: () => void; onAdded: () => void
@@ -941,7 +942,15 @@ function AddTransactionModal({ onClose, onAdded }: {
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr]               = useState('')
 
-  const update = (k: keyof typeof form, v: string) =>
+  const update = (k: keyof typeof form, v: string) => {
+    if (k === 'type') {
+      const defaultCat = v === 'income' ? 'Salary' : 'Food'
+      setForm(p => ({ ...p, [k]: v as 'income' | 'expense', category: defaultCat }))
+      return
+    }
+    setForm(p => ({ ...p, [k]: v }))
+  }
+  const _update_unused = (k: keyof typeof form, v: string) =>
     setForm(p => ({ ...p, [k]: v }))
 
   async function handleSubmit() {
@@ -1050,7 +1059,7 @@ function AddTransactionModal({ onClose, onAdded }: {
           <select id="tx-category" value={form.category}
             onChange={e => update('category', e.target.value)}
             style={{ ...inputStyle, appearance: 'none' }}>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {(form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </ModalField>
 
@@ -1119,7 +1128,15 @@ function EditTransactionModal({ tx, onClose, onSaved }: {
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState('')
 
-  const update = (k: keyof typeof form, v: string) =>
+  const update = (k: keyof typeof form, v: string) => {
+    if (k === 'type') {
+      const defaultCat = v === 'income' ? 'Salary' : 'Food'
+      setForm(p => ({ ...p, [k]: v as 'income' | 'expense', category: defaultCat }))
+      return
+    }
+    setForm(p => ({ ...p, [k]: v }))
+  }
+  const _update_unused = (k: keyof typeof form, v: string) =>
     setForm(p => ({ ...p, [k]: v }))
 
   async function handleSubmit() {
