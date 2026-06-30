@@ -53,7 +53,6 @@ def add_goal():
     except Exception:
         return json_response({"error": "Failed to create goal."}, 500)
 
-
 @goals_bp.route("", methods=["GET"])
 @require_auth
 def list_goals():

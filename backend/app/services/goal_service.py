@@ -72,7 +72,7 @@ def create_goal(user_id: str, data: GoalCreateRequest) -> dict:
 
     logger.info("Goal created", extra={
         "user_id": user_id,
-        "name": data.name,
+        "goal_name": data.name,
         "target_amount": data.target_amount,
     })
 

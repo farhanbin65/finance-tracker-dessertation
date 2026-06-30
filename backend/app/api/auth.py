@@ -176,8 +176,13 @@ def logout():
     In JWT architecture, logout is handled client-side (delete token).
     Server-side we just log the event for audit purposes.
     """
-    from app.services.auth_service import _write_audit_log
-    _write_audit_log(g.current_user_id, "USER_LOGOUT", {})
+    try:
+        from app.services.auth_service import _write_audit_log
+        _write_audit_log(g.current_user_id, "USER_LOGOUT", {})
+    except Exception:
+        pass  # audit log failure should never block logout
+    return jsonify({"message": "Logged out successfully."}), 200
+    
 @auth_bp.route("/export", methods=["GET"])
 @require_auth
 def export_my_data():
