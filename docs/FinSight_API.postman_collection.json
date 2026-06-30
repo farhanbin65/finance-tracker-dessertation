@@ -1,0 +1,562 @@
+{
+  "info": {
+    "name": "FinSight API",
+    "description": "Complete API reference for FinSight — Privacy-First Personal Finance Intelligence Platform.\nBSc Computing Systems Dissertation · Ulster University · 2026\nStudent: Farhan Bin Hossain · B00970291\n\nUSAGE:\n1. Set the 'base_url' collection variable to http://localhost:5000 (local) or https://finance-tracker-dessertation.onrender.com (production)\n2. Run POST /api/auth/login and copy the access_token into the 'token' collection variable\n3. All protected endpoints use {{token}} automatically via the collection-level auth header",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "finsight-api-collection-2026"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000", "type": "string" },
+    { "key": "token",    "value": "",                      "type": "string" },
+    { "key": "transaction_id", "value": "", "type": "string" },
+    { "key": "budget_id",      "value": "", "type": "string" },
+    { "key": "goal_id",        "value": "", "type": "string" },
+    { "key": "message_id",     "value": "", "type": "string" },
+    { "key": "user_id",        "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "01 · Authentication",
+      "description": "User registration, login, Auth0 OAuth, profile, GDPR export and logout. Rate limited: 5/min register, 10/min login.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api","auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"James Carter\",\n  \"email\": \"james@example.com\",\n  \"password\": \"SecurePass1!\"\n}"
+            },
+            "description": "POST /api/auth/register\nRate limited to 5 requests/minute per IP.\nPassword must contain uppercase, digit and special character.\nReturns access_token + refresh_token on success."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.access_token) {",
+                  "  pm.collectionVariables.set('token', res.access_token);",
+                  "  console.log('Token saved to collection variable');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@finsght.com\",\n  \"password\": \"Test1234!\"\n}"
+            },
+            "description": "POST /api/auth/login\nRate limited to 10 requests/minute per IP.\nReturns access_token (1hr), refresh_token (7 days) and user object.\nThe test script automatically saves the token to the collection variable."
+          }
+        },
+        {
+          "name": "Login — Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@finsight.com\",\n  \"password\": \"Admin1234!\"\n}"
+            },
+            "description": "Login as admin user to test admin-only endpoints."
+          }
+        },
+        {
+          "name": "Auth0 Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/auth0-login", "host": ["{{base_url}}"], "path": ["api","auth","auth0-login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"auth0_token\": \"<auth0_id_token_here>\"\n}"
+            },
+            "description": "POST /api/auth/auth0-login\nExchanges an Auth0 id_token for a FinSight JWT.\nUsed by the frontend OAuth callback flow."
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/auth/me", "host": ["{{base_url}}"], "path": ["api","auth","me"] },
+            "description": "GET /api/auth/me — Protected\nReturns the authenticated user's profile.\nRequires valid Bearer token."
+          }
+        },
+        {
+          "name": "GDPR Export (Article 20)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/auth/export", "host": ["{{base_url}}"], "path": ["api","auth","export"] },
+            "description": "GET /api/auth/export — Protected\nGDPR Article 20 data portability.\nReturns all personal data as JSON: profile, transactions, budgets, goals, audit log."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/auth/logout", "host": ["{{base_url}}"], "path": ["api","auth","logout"] },
+            "description": "POST /api/auth/logout — Protected\nLogs out the user and records an audit event."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "02 · Transactions",
+      "description": "Full CRUD for income and expense transactions. Soft delete — records are never hard deleted for audit trail compliance.",
+      "item": [
+        {
+          "name": "Create Transaction — Expense",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('transaction_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api","transactions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Tesco Weekly Shop\",\n  \"amount\": 67.50,\n  \"type\": \"expense\",\n  \"category\": \"Food\",\n  \"date\": \"2026-06-21\",\n  \"notes\": \"Weekly grocery run\"\n}"
+            },
+            "description": "POST /api/transactions — Protected\nCreate a new expense transaction.\nThe test script saves the returned id to {{transaction_id}}.\nValid categories: Food, Transport, Rent, Utilities, Entertainment, Shopping, Health, Subscriptions, Other"
+          }
+        },
+        {
+          "name": "Create Transaction — Income",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api","transactions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Monthly Salary\",\n  \"amount\": 2100.00,\n  \"type\": \"income\",\n  \"category\": \"Income\",\n  \"date\": \"2026-06-01\",\n  \"notes\": \"Employer Ltd\"\n}"
+            },
+            "description": "POST /api/transactions — Protected\nCreate an income transaction."
+          }
+        },
+        {
+          "name": "List Transactions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/transactions?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api","transactions"],
+              "query": [
+                { "key": "limit",      "value": "20" },
+                { "key": "offset",     "value": "0" },
+                { "key": "type",       "value": "expense",    "disabled": true },
+                { "key": "category",   "value": "Food",       "disabled": true },
+                { "key": "start_date", "value": "2026-06-01", "disabled": true },
+                { "key": "end_date",   "value": "2026-06-30", "disabled": true }
+              ]
+            },
+            "description": "GET /api/transactions — Protected\nReturns paginated transaction list.\nOptional filters: type, category, start_date, end_date, limit, offset.\nEnable the disabled query params to filter results."
+          }
+        },
+        {
+          "name": "Get Transaction by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/transactions/{{transaction_id}}", "host": ["{{base_url}}"], "path": ["api","transactions","{{transaction_id}}"] },
+            "description": "GET /api/transactions/:id — Protected\nReturns a single transaction owned by the authenticated user."
+          }
+        },
+        {
+          "name": "Update Transaction",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/transactions/{{transaction_id}}", "host": ["{{base_url}}"], "path": ["api","transactions","{{transaction_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Tesco Weekly Shop (Updated)\",\n  \"amount\": 72.00,\n  \"notes\": \"Included extra items\"\n}"
+            },
+            "description": "PUT /api/transactions/:id — Protected\nPartial update — only include fields you want to change."
+          }
+        },
+        {
+          "name": "Delete Transaction (Soft)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/transactions/{{transaction_id}}", "host": ["{{base_url}}"], "path": ["api","transactions","{{transaction_id}}"] },
+            "description": "DELETE /api/transactions/:id — Protected\nSoft delete — sets deleted:true and deleted_at timestamp.\nRecord is retained in MongoDB for audit trail.\nDeleted transactions are excluded from ML forecasting and anomaly detection."
+          }
+        },
+        {
+          "name": "Monthly Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/transactions/summary/monthly?year=2026&month=6",
+              "host": ["{{base_url}}"],
+              "path": ["api","transactions","summary","monthly"],
+              "query": [
+                { "key": "year",  "value": "2026" },
+                { "key": "month", "value": "6" }
+              ]
+            },
+            "description": "GET /api/transactions/summary/monthly — Protected\nReturns spending by category + income vs expenses for the given month.\nPowers the dashboard donut chart."
+          }
+        },
+        {
+          "name": "Anomaly Detection",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/transactions/anomalies", "host": ["{{base_url}}"], "path": ["api","transactions","anomalies"] },
+            "description": "GET /api/transactions/anomalies — Protected\nAT2 §3.3.4 — Statistical threshold method (mean + 2 standard deviations).\nFlags unusual transactions per category with human-readable explanations.\nRequires at least 5 transactions in a category to compute a reliable baseline."
+          }
+        },
+        {
+          "name": "Get Categories (Public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/transactions/meta/categories", "host": ["{{base_url}}"], "path": ["api","transactions","meta","categories"] },
+            "description": "GET /api/transactions/meta/categories — Public (no auth)\nReturns all valid categories and transaction types.\nUsed by frontend dropdowns."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "03 · Budgets",
+      "description": "Monthly category budgets with real-time spend tracking, percentage utilisation and alert thresholds.",
+      "item": [
+        {
+          "name": "Create Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('budget_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/budgets", "host": ["{{base_url}}"], "path": ["api","budgets"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"Food\",\n  \"limit\": 300.00,\n  \"alert_threshold\": 80\n}"
+            },
+            "description": "POST /api/budgets — Protected\nCreate a monthly budget for a spending category.\nalert_threshold (default 80): percentage at which a warning alert fires."
+          }
+        },
+        {
+          "name": "Get Budgets with Actuals",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/budgets", "host": ["{{base_url}}"], "path": ["api","budgets"] },
+            "description": "GET /api/budgets — Protected\nReturns all budgets for the current month with actual spend, remaining amount, percentage used and status (on_track / warning / over_budget)."
+          }
+        },
+        {
+          "name": "Update Budget",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/budgets/{{budget_id}}", "host": ["{{base_url}}"], "path": ["api","budgets","{{budget_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"limit\": 350.00,\n  \"alert_threshold\": 75\n}"
+            },
+            "description": "PUT /api/budgets/:id — Protected\nUpdate the limit or alert threshold for a budget category."
+          }
+        },
+        {
+          "name": "Delete Budget",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/budgets/{{budget_id}}", "host": ["{{base_url}}"], "path": ["api","budgets","{{budget_id}}"] },
+            "description": "DELETE /api/budgets/:id — Protected\nRemoves a budget category."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "04 · Savings Goals",
+      "description": "Goal-based saving with progress tracking, deposit history and deadline projection.",
+      "item": [
+        {
+          "name": "Create Goal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('goal_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/goals", "host": ["{{base_url}}"], "path": ["api","goals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flat Deposit\",\n  \"target_amount\": 10000.00,\n  \"target_date\": \"2026-12-31\",\n  \"emoji\": \"🏠\",\n  \"notes\": \"Saving for first flat\"\n}"
+            },
+            "description": "POST /api/goals — Protected\nCreate a new savings goal with target amount and deadline."
+          }
+        },
+        {
+          "name": "List Goals",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/goals", "host": ["{{base_url}}"], "path": ["api","goals"] },
+            "description": "GET /api/goals — Protected\nReturns active goals first, then completed. Includes progress percentage and days remaining."
+          }
+        },
+        {
+          "name": "Get Goal by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/goals/{{goal_id}}", "host": ["{{base_url}}"], "path": ["api","goals","{{goal_id}}"] },
+            "description": "GET /api/goals/:id — Protected\nReturns a single goal with full deposit history."
+          }
+        },
+        {
+          "name": "Deposit to Goal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/goals/{{goal_id}}/deposit", "host": ["{{base_url}}"], "path": ["api","goals","{{goal_id}}","deposit"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 250.00,\n  \"notes\": \"Monthly contribution\"\n}"
+            },
+            "description": "POST /api/goals/:id/deposit — Protected\nAdd a deposit to a savings goal. Updates saved_amount and records deposit history."
+          }
+        },
+        {
+          "name": "Update Goal",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/goals/{{goal_id}}", "host": ["{{base_url}}"], "path": ["api","goals","{{goal_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flat Deposit (Updated)\",\n  \"target_amount\": 12000.00\n}"
+            },
+            "description": "PUT /api/goals/:id — Protected\nPartial update of goal name, target amount or deadline."
+          }
+        },
+        {
+          "name": "Delete Goal",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/goals/{{goal_id}}", "host": ["{{base_url}}"], "path": ["api","goals","{{goal_id}}"] },
+            "description": "DELETE /api/goals/:id — Protected\nRemoves a savings goal."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "05 · AI Chat",
+      "description": "Groq-powered (cloud) or Ollama-powered (local) financial assistant with persistent MongoDB-backed chat history. Switch via LLM_PROVIDER env variable.",
+      "item": [
+        {
+          "name": "Send Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.message_id) pm.collectionVariables.set('message_id', res.message_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/chat", "host": ["{{base_url}}"], "path": ["api","chat"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"How much have I spent this month?\" }\n  ]\n}"
+            },
+            "description": "POST /api/chat — Protected\nSends a message to the AI assistant with financial context injected.\nThe LLM sees the user's recent transactions and responds contextually.\nResponse includes guardrail metadata (blocked, risk_level, pii_redacted).\nLLM_PROVIDER=ollama → local Llama 3.1 (dissertation demo, no data leaves machine)\nLLM_PROVIDER=groq → Groq cloud API (live deployment)"
+          }
+        },
+        {
+          "name": "Send Message — Expense Logging",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/chat", "host": ["{{base_url}}"], "path": ["api","chat"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"I spent £12 on lunch at Pret today\" }\n  ]\n}"
+            },
+            "description": "AT2 §2.1 — Conversational expense logging via natural language.\nThe LLM parses intent, extracts amount and category, and confirms the log."
+          }
+        },
+        {
+          "name": "Get Chat History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/chat/history", "host": ["{{base_url}}"], "path": ["api","chat","history"] },
+            "description": "GET /api/chat/history — Protected\nReturns the full persistent conversation history for the authenticated user."
+          }
+        },
+        {
+          "name": "Delete Single Message",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/chat/message/{{message_id}}", "host": ["{{base_url}}"], "path": ["api","chat","message","{{message_id}}"] },
+            "description": "DELETE /api/chat/message/:id — Protected\nDeletes a user message and its paired AI response by timestamp matching."
+          }
+        },
+        {
+          "name": "Clear Chat History",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/chat/history", "host": ["{{base_url}}"], "path": ["api","chat","history"] },
+            "description": "DELETE /api/chat/history — Protected\nClears the entire conversation history for the authenticated user."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "06 · Insights & Forecasting",
+      "description": "ML-powered spending predictions with SHAP explainability. AT2 §3.3.4 — Random Forest regression + anomaly detection + natural language explanation.",
+      "item": [
+        {
+          "name": "Predict Spending (Forecast + SHAP)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/insights/predict", "host": ["{{base_url}}"], "path": ["api","insights","predict"] },
+            "description": "POST /api/insights/predict — Protected\nAT2 Diagram 5 (Activity Diagram) flow:\n  1. Retrieve active (non-deleted) transaction history\n  2. Check data sufficiency (need 2+ months)\n  3. Build feature matrix (9 category features + rolling averages)\n  4. Train Random Forest Regressor\n  5. Compute SHAP values for explainability\n  6. Run anomaly detection (mean + 2 SD)\n  7. Generate NL explanation via LLM (Groq or Ollama)\n  8. Return full prediction payload\n\nResponse includes: predicted_total, confidence, top_drivers, category_shap, nl_explanation, budget_risk, anomalies"
+          }
+        },
+        {
+          "name": "Spending Summary",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/insights/summary", "host": ["{{base_url}}"], "path": ["api","insights","summary"] },
+            "description": "GET /api/insights/summary — Protected\nQuick spending summary without ML inference.\nFaster than /predict — used for lightweight dashboard widgets."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "07 · Alerts",
+      "description": "Aggregated intelligent alert feed. AT2 §3.1 Must Have — intelligent alerts for overspending, anomalies and savings risks.",
+      "item": [
+        {
+          "name": "Get Alerts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/alerts", "host": ["{{base_url}}"], "path": ["api","alerts"] },
+            "description": "GET /api/alerts — Protected\nAggregates three AT2-specified alert categories:\n  1. Overspending — budgets with status over_budget or warning\n  2. Anomalies — unusual transactions (mean + 2 SD per category)\n  3. Savings risk — goals at risk of missing deadline (< 70% funded, < 30 days remaining)\n\nAlerts sorted by severity (high first).\nResponse includes count and high_severity_count."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "08 · Admin",
+      "description": "Admin-only endpoints. Requires a user with role: admin. Use the Login — Admin request first.",
+      "item": [
+        {
+          "name": "Platform Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/admin/stats", "host": ["{{base_url}}"], "path": ["api","admin","stats"] },
+            "description": "GET /api/admin/stats — Admin only\nReturns platform-wide statistics: total users, transactions, active sessions."
+          }
+        },
+        {
+          "name": "List All Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/admin/users", "host": ["{{base_url}}"], "path": ["api","admin","users"] },
+            "description": "GET /api/admin/users — Admin only\nReturns all registered users with account status."
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/admin/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api","admin","users","{{user_id}}"] },
+            "description": "GET /api/admin/users/:id — Admin only\nInspect a specific user's profile and activity."
+          }
+        },
+        {
+          "name": "Ban User",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/admin/users/{{user_id}}/ban", "host": ["{{base_url}}"], "path": ["api","admin","users","{{user_id}}","ban"] },
+            "description": "POST /api/admin/users/:id/ban — Admin only\nSuspends a user account."
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/admin/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api","admin","users","{{user_id}}"] },
+            "description": "DELETE /api/admin/users/:id — Admin only\nRemoves a user account."
+          }
+        },
+        {
+          "name": "All Transactions (Admin)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/admin/transactions", "host": ["{{base_url}}"], "path": ["api","admin","transactions"] },
+            "description": "GET /api/admin/transactions — Admin only\nPlatform-wide transaction view across all users."
+          }
+        },
+        {
+          "name": "Platform Charts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/admin/charts", "host": ["{{base_url}}"], "path": ["api","admin","charts"] },
+            "description": "GET /api/admin/charts — Admin only\nPlatform-wide analytics: donut chart by category, bar chart for monthly income vs expenses across all users."
+          }
+        }
+      ]
+    }
+
+  ]
+}
