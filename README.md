@@ -354,6 +354,18 @@ PyPI package: `pip install fintech-llm-guard`
 
 ---
 
+## Mobile Deployment (iOS)
+
+FinSight ships as a native iOS app via Capacitor, wrapping the production React build for App Store-style distribution alongside the web and API deployments.
+
+**Architecture decision:** the Capacitor WebView loads the built frontend bundle locally on-device (`webDir: dist`) rather than pointing to the live Vercel URL via `server.url`. Loading a remote origin from within `WKWebView` triggered ATS/origin-resolution failures that produced a persistent blank render with no recoverable native error — serving the bundle locally and routing only API calls over HTTPS to the Render backend avoided this class of failure entirely while keeping a single source of truth for the UI codebase.
+
+**Notable issue resolved:** an early `ios/` platform scaffold was missing its window/root-view-controller wiring (no `UIApplicationSceneManifest`, empty `UIMainStoryboardFile`, default `AppDelegate` returning `true` with no `CAPBridgeViewController` instantiation) — a state that produces an identical blank screen to the ATS issue above but with a completely different root cause, since no WebView is ever attached to a window. Diagnosed via Safari Web Inspector reporting no inspectable application (confirming no WebView existed, vs. a WebView existing but failing to render), then resolved by regenerating the platform (`npx cap add ios`) from a clean `capacitor.config.ts`.
+
+Build asset paths use Vite's relative `base: './'` to ensure correct resolution under Capacitor's local file-serving scheme, and the Flask backend's CORS allowlist includes `capacitor://localhost` alongside the web origins.
+
+---
+
 ## Tech Stack
 
 ### Frontend
@@ -400,141 +412,6 @@ PyPI package: `pip install fintech-llm-guard`
 | Vercel | Frontend hosting with CI/CD |
 | Render | Backend hosting with auto-deploy |
 | GitHub Actions | Automated testing and deployment pipeline |
-
----
-
-## Project Structure
-
-```
-finance-tracker-dessertation/
-│
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── auth.py           # Register, login, Auth0 callback, GDPR export
-│   │   │   ├── transactions.py   # CRUD + category filtering + anomaly check
-│   │   │   ├── budgets.py        # Monthly budget management
-│   │   │   ├── goals.py          # Savings goals + deposits
-│   │   │   ├── chat.py           # AI chat, history, message deletion
-│   │   │   ├── insights.py       # SHAP-based spending predictions
-│   │   │   ├── alerts.py         # Aggregated overspending, anomaly and savings-risk alerts
-│   │   │   └── admin.py          # Platform analytics, user management
-│   │   ├── core/
-│   │   │   ├── config.py         # Environment configuration
-│   │   │   ├── security.py       # JWT + auth decorators
-│   │   │   ├── logging.py        # Structured JSON logging
-│   │   │   └── keepalive.py      # Render cold-start mitigation
-│   │   ├── db/
-│   │   │   └── mongo.py          # MongoDB connection + ping
-│   │   ├── models/
-│   │   │   ├── transaction.py    # Pydantic transaction schema
-│   │   │   ├── budget.py         # Pydantic budget schema
-│   │   │   ├── goal.py           # Pydantic goal schema
-│   │   │   └── user.py           # Pydantic user schema
-│   │   ├── services/
-│   │   │   ├── auth_service.py   # Auth business logic
-│   │   │   ├── budget_service.py # Budget business logic
-│   │   │   ├── transaction_service.py # Transaction business logic
-│   │   │   ├── goal_service.py   # Goal business logic
-│   │   │   ├── ml_service.py     # Forecasting + SHAP explainability
-│   │   │   ├── anomaly_detector.py # Statistical threshold anomaly detection
-│   │   │   └── groq_client.py    # Groq LLM adapter
-│   │   └── main.py               # App entrypoint
-│   ├── .env.example
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── DashboardPage.tsx
-│   │   │   ├── TransactionsPage.tsx
-│   │   │   ├── BudgetPage.tsx
-│   │   │   ├── GoalsPage.tsx
-│   │   │   ├── ChatPage.tsx
-│   │   │   ├── InsightsPage.tsx
-│   │   │   ├── ProfilePage.tsx
-│   │   │   ├── AdminPage.tsx
-│   │   │   ├── AdminUserPage.tsx
-│   │   │   ├── AdminSettingsPage.tsx
-│   │   │   └── CallbackPage.tsx
-│   │   ├── features/
-│   │   │   └── auth/             # LoginPage, RegisterPage, ForgotPasswordPage
-│   │   ├── components/
-│   │   │   ├── layout/           # AppLayout, navigation
-│   │   │   ├── ui/               # Toast and shared UI primitives
-│   │   │   └── ReviewSheet.tsx   # In-app SUS usability questionnaire
-│   │   ├── contexts/
-│   │   │   └── ThemeContext.tsx
-│   │   ├── hooks/
-│   │   │   └── useIsDesktop.ts   # Single source of truth for responsive behaviour
-│   │   ├── utils/
-│   │   │   └── getAuthToken.ts
-│   │   ├── App.tsx
-│   │   ├── router.tsx
-│   │   ├── main.tsx
-│   │   └── index.css
-│   ├── .env.example
-│   ├── vercel.json
-│   └── package.json
-│
-└── .github/
-    └── workflows/
-        └── ci.yml
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18 or above
-- Python 3.12
-- MongoDB Atlas account
-- Auth0 account
-- Groq API key (free at console.groq.com)
-
-### Backend Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/farhanbin65/finance-tracker-dessertation.git
-cd finance-tracker-dessertation/backend
-
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/Scripts/activate   # Windows
-source .venv/bin/activate        # macOS / Linux
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Copy environment file and fill in values
-cp .env.example .env
-
-# Start the development server
-python -m app.main
-```
-
-Backend runs at `http://localhost:5000`
-
-### Frontend Setup
-
-```bash
-cd ../frontend
-
-# Install dependencies
-npm install
-
-# Copy environment file and fill in values
-cp .env.example .env
-
-# Start the development server
-npm run dev
-```
-
-Frontend runs at `http://localhost:5173`
 
 ---
 
